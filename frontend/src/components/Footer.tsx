@@ -182,7 +182,7 @@ export default function Footer() {
 
                                          <span className="text-gray-400">
 
-                                           +91 9691434565
+                                           +91 7441143797
 
                                          </span>
 
