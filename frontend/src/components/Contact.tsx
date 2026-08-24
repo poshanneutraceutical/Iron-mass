@@ -390,31 +390,29 @@ export default function Contact() {
 
                               )}
 
-                              <button
-                                type="submit"
-                                disabled={status === "loading"}
-                                className="btn-primary w-full justify-center"
-                              >
-
-                                {status === "loading" ? (
-                                  <>
-                                    <Loader2
-                                      size={18}
-                                      className="animate-spin"
-                                    />
-                                    Sending...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Send
-                                      size={18}
-                                      className="shrink-0"
-                                    />
-                                    <span>Send Message</span>
-                                  </>
-                                )}
-
-                              </button>
+                             <button
+                               type="submit"
+                               disabled={status === "loading"}
+                               className="btn-primary w-full flex items-center justify-center gap-3"
+                             >
+                               {status === "loading" ? (
+                                 <>
+                                   <Loader2
+                                     size={18}
+                                     className="animate-spin shrink-0"
+                                   />
+                                   <span>Sending...</span>
+                                 </>
+                               ) : (
+                                 <>
+                                   <Send
+                                     size={18}
+                                     className="shrink-0"
+                                   />
+                                   <span>Send Message</span>
+                                 </>
+                               )}
+                             </button>
 
                             </form>
 
