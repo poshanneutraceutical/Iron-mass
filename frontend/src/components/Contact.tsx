@@ -171,7 +171,7 @@ export default function Contact() {
                   </h3>
 
                   <p className="text-gray-400">
-                    +91 9691434565
+                    +91 7441143797
                   </p>
 
                 </div>
