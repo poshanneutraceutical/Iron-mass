@@ -406,8 +406,11 @@ export default function Contact() {
                                   </>
                                 ) : (
                                   <>
-                                    <Send size={18} />
-                                    Send Message
+                                    <Send
+                                      size={18}
+                                      className="shrink-0"
+                                    />
+                                    <span>Send Message</span>
                                   </>
                                 )}
 
