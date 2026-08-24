@@ -91,7 +91,7 @@ export default function Distributor() {
 
           {/* Left Side */}
 
-          <div>
+          <div
             data-reveal
               className= "reveal"
             <span className="uppercase tracking-[0.45em] text-[#d4af37] text-sm font-semibold">
