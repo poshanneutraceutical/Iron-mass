@@ -94,10 +94,10 @@ export default function Distributor() {
           <div
             data-reveal
               className= "reveal"
+              >
             <span className="uppercase tracking-[0.45em] text-[#d4af37] text-sm font-semibold">
 
               Business Partnership
-
             </span>
 
             <h2 className="mt-6 text-5xl md:text-7xl font-black uppercase leading-none">
