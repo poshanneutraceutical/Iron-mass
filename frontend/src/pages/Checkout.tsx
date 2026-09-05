@@ -1,17 +1,55 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  MapPin,
+  Mail,
+  Phone,
+  ShieldCheck,
+  ShoppingBag,
+  User,
+} from "lucide-react";
+
 import { useCart } from "../context/CartContext";
 import { orderService } from "../services/orderService";
 import { getCustomerId } from "../utils/customer";
 
 const CUSTOMER_ID = getCustomerId();
 
+/* =========================================================
+   PRODUCT IMAGES
+   Backend IDs:
+   10 = Bulk Mass Gainer
+   11 = Nitro Surge Pre-Workout
+   12 = Mech-Warrior
+========================================================= */
+
+const getProductImage = (productId: number) => {
+  const images: Record<number, string> = {
+    10: "/products/ironmass massgainer.png",
+    11: "/products/iron mass pre workout.png",
+    12: "/products/ironmass pre.png",
+  };
+
+  return images[productId] || "/products/default.png";
+};
+
+/* =========================================================
+   CHECKOUT
+========================================================= */
+
 export default function Checkout() {
   const navigate = useNavigate();
 
-  const { cart, clearCart } = useCart();
+  const {
+    cart,
+    loading: cartLoading,
+    clearCart,
+  } = useCart();
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] =
+    useState(false);
 
   const [form, setForm] = useState({
     customerName: "",
@@ -23,217 +61,811 @@ export default function Checkout() {
     pincode: "",
   });
 
-  useEffect(() => {
-    if (!cart || cart.items.length === 0) {
-      navigate("/cart");
-    }
-  }, [cart, navigate]);
+  /* =======================================================
+     WAIT FOR CART TO LOAD
+  ======================================================= */
 
-  // Prevent crash while redirecting
-  if (!cart) {
-    return null;
+  useEffect(() => {
+    /*
+     * IMPORTANT:
+     * Do not redirect while the cart is still
+     * being loaded from the backend.
+     */
+
+    if (cartLoading) {
+      return;
+    }
+
+    /*
+     * Once loading has finished, if there is
+     * no cart or no items, go back to cart.
+     */
+
+    if (
+      !cart ||
+      !cart.items ||
+      cart.items.length === 0
+    ) {
+      navigate("/cart", {
+        replace: true,
+      });
+    }
+  }, [
+    cart,
+    cartLoading,
+    navigate,
+  ]);
+
+  /* =======================================================
+     CART LOADING SCREEN
+  ======================================================= */
+
+  if (cartLoading) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+
+        <div className="flex flex-col items-center">
+
+          <div className="w-11 h-11 border-2 border-yellow-400/20 border-t-yellow-400 rounded-full animate-spin" />
+
+          <p className="mt-5 text-white/60">
+            Loading checkout...
+          </p>
+
+        </div>
+
+      </div>
+    );
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  /* =======================================================
+     EMPTY CART / REDIRECTING
+  ======================================================= */
+
+  if (
+    !cart ||
+    !cart.items ||
+    cart.items.length === 0
+  ) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center text-white">
+
+        <div className="text-center">
+
+          <div className="w-10 h-10 border-2 border-yellow-400/20 border-t-yellow-400 rounded-full animate-spin mx-auto" />
+
+          <p className="mt-5 text-white/60">
+            Redirecting to cart...
+          </p>
+
+        </div>
+
+      </div>
+    );
+  }
+
+  /* =======================================================
+     FORM CHANGE
+  ======================================================= */
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     setForm({
       ...form,
       [e.target.name]: e.target.value,
     });
   };
 
+  /* =======================================================
+     PLACE ORDER
+  ======================================================= */
+
   const placeOrder = async () => {
+
+    /*
+     * Check required fields
+     */
+
     if (
-      !form.customerName ||
-      !form.email ||
-      !form.phone ||
-      !form.address ||
-      !form.city ||
-      !form.state ||
-      !form.pincode
+      !form.customerName.trim() ||
+      !form.email.trim() ||
+      !form.phone.trim() ||
+      !form.address.trim() ||
+      !form.city.trim() ||
+      !form.state.trim() ||
+      !form.pincode.trim()
     ) {
       alert("Please fill all fields.");
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    /*
+     * Email validation
+     */
 
-    if (!emailRegex.test(form.email)) {
-      alert("Please enter a valid email.");
+    const emailRegex =
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (
+      !emailRegex.test(
+        form.email.trim()
+      )
+    ) {
+      alert(
+        "Please enter a valid email."
+      );
       return;
     }
 
-    if (!/^[6-9]\d{9}$/.test(form.phone)) {
-      alert("Please enter a valid 10-digit mobile number.");
+    /*
+     * Indian mobile validation
+     */
+
+    if (
+      !/^[6-9]\d{9}$/.test(
+        form.phone.trim()
+      )
+    ) {
+      alert(
+        "Please enter a valid 10-digit mobile number."
+      );
       return;
     }
 
-    if (!/^\d{6}$/.test(form.pincode)) {
-      alert("Please enter a valid 6-digit pincode.");
+    /*
+     * Pincode validation
+     */
+
+    if (
+      !/^\d{6}$/.test(
+        form.pincode.trim()
+      )
+    ) {
+      alert(
+        "Please enter a valid 6-digit pincode."
+      );
       return;
     }
 
     try {
+
       setLoading(true);
 
-      const order = await orderService.checkout({
-        customerId: CUSTOMER_ID,
-        ...form,
-      });
+      /*
+       * Send order to backend
+       */
+
+      const order =
+        await orderService.checkout({
+          customerId: CUSTOMER_ID,
+          customerName:
+            form.customerName.trim(),
+          email:
+            form.email.trim(),
+          phone:
+            form.phone.trim(),
+          address:
+            form.address.trim(),
+          city:
+            form.city.trim(),
+          state:
+            form.state.trim(),
+          pincode:
+            form.pincode.trim(),
+        });
+
+      /*
+       * Clear backend cart
+       */
 
       await clearCart();
 
-      localStorage.removeItem("cart");
+      /*
+       * Remove any old local cart
+       */
 
-      navigate("/order-success", {
-        state: { order },
-      });
+      localStorage.removeItem(
+        "cart"
+      );
+
+      /*
+       * Go to success page
+       */
+
+      navigate(
+        "/order-success",
+        {
+          state: {
+            order,
+          },
+        }
+      );
+
     } catch (error) {
-      console.error(error);
-      alert("Unable to place order.");
+
+      console.error(
+        "Unable to place order:",
+        error
+      );
+
+      alert(
+        "Unable to place order. Please try again."
+      );
+
     } finally {
+
       setLoading(false);
     }
   };
 
+  /* =======================================================
+     TOTAL ITEMS
+  ======================================================= */
+
+  const totalItems =
+    cart.items.reduce(
+      (total, item) =>
+        total + item.quantity,
+      0
+    );
+
+  /* =======================================================
+     CHECKOUT PAGE
+  ======================================================= */
+
   return (
     <div className="min-h-screen bg-black text-white">
-      <div className="max-w-7xl mx-auto py-16 px-6">
 
-        <h1 className="text-5xl font-bold mb-10">
-          Checkout
-        </h1>
+      <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8 py-10 md:py-14">
 
-        <div className="grid lg:grid-cols-2 gap-12">
+        {/* =================================================
+            HEADER
+        ================================================= */}
 
-          {/* Customer Details */}
+        <div className="mb-10">
 
-          <div className="space-y-5">
+          <button
+            type="button"
+            onClick={() =>
+              navigate("/cart")
+            }
+            className="inline-flex items-center gap-2 text-white/50 hover:text-yellow-400 transition-colors mb-6"
+          >
+            <ArrowLeft size={18} />
+            Back to Cart
+          </button>
 
-            <input
-              className="w-full bg-[#111] border border-white/10 rounded-lg p-4 focus:border-red-500 outline-none"
-              placeholder="Full Name"
-              name="customerName"
-              value={form.customerName}
-              onChange={handleChange}
-            />
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
 
-            <input
-              type="email"
-              className="w-full bg-[#111] border border-white/10 rounded-lg p-4 focus:border-red-500 outline-none"
-              placeholder="Email Address"
-              name="email"
-              value={form.email}
-              onChange={handleChange}
-            />
+            <div>
 
-            <input
-              className="w-full bg-[#111] border border-white/10 rounded-lg p-4 focus:border-red-500 outline-none"
-              placeholder="Phone Number"
-              name="phone"
-              value={form.phone}
-              onChange={handleChange}
-            />
+              <p className="text-yellow-400 uppercase tracking-[0.2em] text-xs font-bold mb-3">
+                Iron Mass
+              </p>
 
-            <input
-              className="w-full bg-[#111] border border-white/10 rounded-lg p-4 focus:border-red-500 outline-none"
-              placeholder="Address"
-              name="address"
-              value={form.address}
-              onChange={handleChange}
-            />
+              <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight">
+                Checkout
+              </h1>
 
-            <input
-              className="w-full bg-[#111] border border-white/10 rounded-lg p-4 focus:border-red-500 outline-none"
-              placeholder="City"
-              name="city"
-              value={form.city}
-              onChange={handleChange}
-            />
+              <p className="text-white/50 mt-3">
+                Complete your details to place your order.
+              </p>
 
-            <input
-              className="w-full bg-[#111] border border-white/10 rounded-lg p-4 focus:border-red-500 outline-none"
-              placeholder="State"
-              name="state"
-              value={form.state}
-              onChange={handleChange}
-            />
+            </div>
 
-            <input
-              className="w-full bg-[#111] border border-white/10 rounded-lg p-4 focus:border-red-500 outline-none"
-              placeholder="Pincode"
-              name="pincode"
-              value={form.pincode}
-              onChange={handleChange}
-            />
+            <div className="flex items-center gap-2 text-white/50 text-sm">
+
+              <ShieldCheck
+                size={18}
+                className="text-yellow-400"
+              />
+
+              Secure Checkout
+
+            </div>
 
           </div>
 
-          {/* Order Summary */}
+        </div>
 
-          <div className="bg-[#111111] rounded-xl border border-white/10 p-6 h-fit sticky top-24">
+        {/* =================================================
+            MAIN GRID
+        ================================================= */}
 
-            <h2 className="text-3xl font-bold mb-6">
-              Order Summary
-            </h2>
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-10">
 
-            <div className="space-y-5">
+          {/* =================================================
+              CUSTOMER INFORMATION
+          ================================================= */}
 
-              {cart.items.map((item) => (
+          <div className="lg:col-span-3">
 
-                <div
-                  key={item.productId}
-                  className="flex justify-between items-center border-b border-white/10 pb-4"
-                >
+            <div className="bg-[#101010] border border-white/10 rounded-2xl overflow-hidden">
+
+              {/* HEADER */}
+
+              <div className="px-6 sm:px-8 py-6 border-b border-white/10">
+
+                <div className="flex items-center gap-3">
+
+                  <div className="w-10 h-10 rounded-full bg-yellow-400/10 border border-yellow-400/20 flex items-center justify-center">
+
+                    <User
+                      size={19}
+                      className="text-yellow-400"
+                    />
+
+                  </div>
 
                   <div>
 
-                    <p className="font-medium">
-                      {item.productName}
-                    </p>
+                    <h2 className="text-xl sm:text-2xl font-bold">
+                      Customer Details
+                    </h2>
 
-                    <p className="text-sm text-white/50">
-                      Qty : {item.quantity}
+                    <p className="text-white/40 text-sm mt-1">
+                      Enter your delivery information
                     </p>
 
                   </div>
 
-                  <p className="font-semibold">
-                    ₹{item.subtotal.toLocaleString("en-IN")}
-                  </p>
+                </div>
+
+              </div>
+
+              {/* FORM */}
+
+              <div className="p-6 sm:p-8 space-y-5">
+
+                {/* NAME */}
+
+                <div>
+
+                  <label className="block text-sm text-white/60 mb-2">
+                    Full Name
+                  </label>
+
+                  <div className="relative">
+
+                    <User
+                      size={18}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30"
+                    />
+
+                    <input
+                      type="text"
+                      name="customerName"
+                      value={
+                        form.customerName
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      placeholder="Enter your full name"
+                      className="w-full bg-[#181818] border border-white/10 rounded-xl pl-11 pr-4 py-3.5 text-white placeholder:text-white/25 outline-none focus:border-yellow-400/60 transition-colors"
+                    />
+
+                  </div>
 
                 </div>
 
-              ))}
+                {/* EMAIL */}
 
-            </div>
+                <div>
 
-            <div className="border-t border-white/10 mt-6 pt-6">
+                  <label className="block text-sm text-white/60 mb-2">
+                    Email Address
+                  </label>
 
-              <div className="flex justify-between text-2xl font-bold">
+                  <div className="relative">
 
-                <span>Total</span>
+                    <Mail
+                      size={18}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30"
+                    />
 
-                <span>
-                  ₹{cart.totalAmount.toLocaleString("en-IN")}
-                </span>
+                    <input
+                      type="email"
+                      name="email"
+                      value={
+                        form.email
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      placeholder="Enter your email address"
+                      className="w-full bg-[#181818] border border-white/10 rounded-xl pl-11 pr-4 py-3.5 text-white placeholder:text-white/25 outline-none focus:border-yellow-400/60 transition-colors"
+                    />
+
+                  </div>
+
+                </div>
+
+                {/* PHONE */}
+
+                <div>
+
+                  <label className="block text-sm text-white/60 mb-2">
+                    Phone Number
+                  </label>
+
+                  <div className="relative">
+
+                    <Phone
+                      size={18}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30"
+                    />
+
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={
+                        form.phone
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      placeholder="10-digit mobile number"
+                      maxLength={10}
+                      className="w-full bg-[#181818] border border-white/10 rounded-xl pl-11 pr-4 py-3.5 text-white placeholder:text-white/25 outline-none focus:border-yellow-400/60 transition-colors"
+                    />
+
+                  </div>
+
+                </div>
+
+                {/* ADDRESS */}
+
+                <div>
+
+                  <label className="block text-sm text-white/60 mb-2">
+                    Delivery Address
+                  </label>
+
+                  <div className="relative">
+
+                    <MapPin
+                      size={18}
+                      className="absolute left-4 top-4 text-white/30"
+                    />
+
+                    <input
+                      type="text"
+                      name="address"
+                      value={
+                        form.address
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      placeholder="House no., street, area"
+                      className="w-full bg-[#181818] border border-white/10 rounded-xl pl-11 pr-4 py-3.5 text-white placeholder:text-white/25 outline-none focus:border-yellow-400/60 transition-colors"
+                    />
+
+                  </div>
+
+                </div>
+
+                {/* CITY + STATE */}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+                  <div>
+
+                    <label className="block text-sm text-white/60 mb-2">
+                      City
+                    </label>
+
+                    <input
+                      type="text"
+                      name="city"
+                      value={
+                        form.city
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      placeholder="City"
+                      className="w-full bg-[#181818] border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder:text-white/25 outline-none focus:border-yellow-400/60 transition-colors"
+                    />
+
+                  </div>
+
+                  <div>
+
+                    <label className="block text-sm text-white/60 mb-2">
+                      State
+                    </label>
+
+                    <input
+                      type="text"
+                      name="state"
+                      value={
+                        form.state
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      placeholder="State"
+                      className="w-full bg-[#181818] border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder:text-white/25 outline-none focus:border-yellow-400/60 transition-colors"
+                    />
+
+                  </div>
+
+                </div>
+
+                {/* PINCODE */}
+
+                <div>
+
+                  <label className="block text-sm text-white/60 mb-2">
+                    Pincode
+                  </label>
+
+                  <input
+                    type="text"
+                    name="pincode"
+                    value={
+                      form.pincode
+                    }
+                    onChange={
+                      handleChange
+                    }
+                    placeholder="6-digit pincode"
+                    maxLength={6}
+                    inputMode="numeric"
+                    className="w-full bg-[#181818] border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder:text-white/25 outline-none focus:border-yellow-400/60 transition-colors"
+                  />
+
+                </div>
 
               </div>
 
             </div>
 
-            <button
-              disabled={loading}
-              onClick={placeOrder}
-              className="btn-primary w-full mt-8 justify-center disabled:opacity-60"
-            >
-              {loading ? "Placing Order..." : "Place Order"}
-            </button>
+          </div>
+
+          {/* =================================================
+              ORDER SUMMARY
+          ================================================= */}
+
+          <div className="lg:col-span-2">
+
+            <div className="lg:sticky lg:top-24">
+
+              <div className="bg-[#101010] border border-white/10 rounded-2xl overflow-hidden">
+
+                {/* HEADER */}
+
+                <div className="px-6 sm:px-7 py-6 border-b border-white/10">
+
+                  <div className="flex items-center justify-between">
+
+                    <div>
+
+                      <p className="text-yellow-400 uppercase tracking-[0.18em] text-xs font-bold mb-2">
+                        Your Order
+                      </p>
+
+                      <h2 className="text-2xl font-black">
+                        Order Summary
+                      </h2>
+
+                    </div>
+
+                    <div className="w-11 h-11 rounded-full bg-yellow-400/10 border border-yellow-400/20 flex items-center justify-center">
+
+                      <ShoppingBag
+                        size={20}
+                        className="text-yellow-400"
+                      />
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+                {/* PRODUCTS */}
+
+                <div className="p-6 sm:p-7">
+
+                  <div className="space-y-4">
+
+                    {cart.items.map(
+                      (item) => (
+
+                        <div
+                          key={
+                            item.productId
+                          }
+                          className="flex gap-4 pb-4 border-b border-white/10"
+                        >
+
+                          {/* IMAGE */}
+
+                          <div className="w-16 h-16 flex-shrink-0 bg-[#181818] border border-white/10 rounded-lg overflow-hidden flex items-center justify-center">
+
+                            <img
+                              src={getProductImage(
+                                item.productId
+                              )}
+                              alt={
+                                item.productName
+                              }
+                              className="w-full h-full object-contain p-1"
+                              onError={(
+                                event
+                              ) => {
+                                event.currentTarget.src =
+                                  "/products/default.png";
+                              }}
+                            />
+
+                          </div>
+
+                          {/* DETAILS */}
+
+                          <div className="flex-1 min-w-0">
+
+                            <p className="font-semibold leading-tight">
+                              {
+                                item.productName
+                              }
+                            </p>
+
+                            <p className="text-sm text-white/40 mt-1">
+                              Qty:{" "}
+                              {
+                                item.quantity
+                              }
+                            </p>
+
+                          </div>
+
+                          {/* PRICE */}
+
+                          <p className="font-bold whitespace-nowrap">
+
+                            ₹
+                            {item.subtotal.toLocaleString(
+                              "en-IN"
+                            )}
+
+                          </p>
+
+                        </div>
+
+                      )
+                    )}
+
+                  </div>
+
+                  {/* ITEMS */}
+
+                  <div className="flex justify-between mt-5 text-white/50">
+
+                    <span>
+                      Total Items
+                    </span>
+
+                    <span className="text-white font-semibold">
+                      {totalItems}
+                    </span>
+
+                  </div>
+
+                  {/* TOTAL */}
+
+                  <div className="border-t border-white/10 mt-5 pt-5">
+
+                    <div className="flex items-end justify-between gap-4">
+
+                      <div>
+
+                        <p className="text-white/50 text-sm">
+                          Order Total
+                        </p>
+
+                        <p className="text-xs text-white/30 mt-1">
+                          No additional charges
+                        </p>
+
+                      </div>
+
+                      <p className="text-2xl sm:text-3xl font-black text-yellow-400 whitespace-nowrap">
+
+                        ₹
+                        {cart.totalAmount.toLocaleString(
+                          "en-IN"
+                        )}
+
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                  {/* PLACE ORDER */}
+
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={
+                      placeOrder
+                    }
+                    className="w-full mt-7 bg-yellow-400 hover:bg-yellow-300 disabled:bg-yellow-400/50 disabled:cursor-not-allowed text-black font-black py-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-200"
+                  >
+
+                    {loading ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+
+                        Placing Order...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2
+                          size={19}
+                        />
+
+                        Place Order
+                      </>
+                    )}
+
+                  </button>
+
+                  {/* BACK TO CART */}
+
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() =>
+                      navigate(
+                        "/cart"
+                      )
+                    }
+                    className="w-full mt-3 border border-white/10 hover:border-white/20 hover:bg-white/5 text-white font-semibold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all duration-200"
+                  >
+
+                    <ArrowLeft
+                      size={17}
+                    />
+
+                    Back to Cart
+
+                  </button>
+
+                </div>
+
+                {/* SECURITY */}
+
+                <div className="px-6 sm:px-7 py-4 bg-[#0b0b0b] border-t border-white/10">
+
+                  <div className="flex items-center justify-center gap-2 text-white/40 text-xs">
+
+                    <ShieldCheck
+                      size={16}
+                      className="text-yellow-400/70"
+                    />
+
+                    Your information is securely processed
+
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
 
           </div>
 
         </div>
 
       </div>
+
     </div>
   );
 }

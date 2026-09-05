@@ -1,15 +1,11 @@
 package com.Ironmasswebsite.service;
 
-import com.Ironmasswebsite.dto.*;
 import com.Ironmasswebsite.dto.AddToCartRequest;
 import com.Ironmasswebsite.dto.CartDTO;
 import com.Ironmasswebsite.dto.CartItemDTO;
 import com.Ironmasswebsite.entity.Cart;
-import com.Ironmasswebsite.entity.Cart;
 import com.Ironmasswebsite.entity.CartItem;
 import com.Ironmasswebsite.entity.Product;
-import com.Ironmasswebsite.entity.Product;
-import com.Ironmasswebsite.repository.CartRepository;
 import com.Ironmasswebsite.repository.CartRepository;
 import com.Ironmasswebsite.repository.ProductRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -19,327 +15,380 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class CartService {
 
-
     private final CartRepository cartRepository;
 
     private final ProductRepository productRepository;
 
+    /*
+     * ADD TO CART
+     */
+    public CartDTO addToCart(
+            AddToCartRequest request
+    ) {
 
+        if (request.getQuantity() == null ||
+                request.getQuantity() <= 0) {
 
-    public CartDTO addToCart(AddToCartRequest request) {
+            throw new IllegalArgumentException(
+                    "Quantity must be greater than 0"
+            );
+        }
 
+        /*
+         * Find product
+         */
+        Product product =
+                productRepository.findById(
+                        request.getProductId()
+                ).orElseThrow(() ->
+                        new EntityNotFoundException(
+                                "Product not found: "
+                                        + request.getProductId()
+                        )
+                );
 
-        Product product = productRepository.findById(request.getProductId())
-                .orElseThrow(() ->
-                        new EntityNotFoundException("Product not found"));
+        /*
+         * Find existing cart
+         * or create a new one
+         */
+        Cart cart =
+                cartRepository
+                        .findByCustomerId(
+                                request.getCustomerId()
+                        )
+                        .orElseGet(() -> {
 
+                            Cart newCart =
+                                    Cart.builder()
+                                            .customerId(
+                                                    request.getCustomerId()
+                                            )
+                                            .items(
+                                                    new ArrayList<>()
+                                            )
+                                            .totalAmount(
+                                                    BigDecimal.ZERO
+                                            )
+                                            .build();
 
+                            return cartRepository.save(
+                                    newCart
+                            );
+                        });
 
-        Cart cart = cartRepository.findByCustomerId(request.getCustomerId())
-                .orElseGet(() -> {
-
-                    Cart newCart = Cart.builder()
-                            .customerId(request.getCustomerId())
-                            .items(new ArrayList<>())
-                            .totalAmount(BigDecimal.ZERO)
-                            .build();
-
-                    return cartRepository.save(newCart);
-                });
-
-
-
-        Optional<CartItem> existingItem =
+        /*
+         * Check whether product
+         * already exists in cart
+         */
+        CartItem existingItem =
                 cart.getItems()
                         .stream()
                         .filter(item ->
                                 item.getProduct()
                                         .getId()
-                                        .equals(product.getId()))
-                        .findFirst();
+                                        .equals(
+                                                product.getId()
+                                        )
+                        )
+                        .findFirst()
+                        .orElse(null);
 
+        /*
+         * Product already exists
+         */
+        if (existingItem != null) {
 
+            int newQuantity =
+                    existingItem.getQuantity()
+                            + request.getQuantity();
 
-        if(existingItem.isPresent()) {
-
-
-            CartItem item = existingItem.get();
-
-
-            item.setQuantity(
-                    item.getQuantity() + request.getQuantity()
+            existingItem.setQuantity(
+                    newQuantity
             );
 
-
-            item.setSubtotal(
+            existingItem.setSubtotal(
                     product.getPrice()
                             .multiply(
-                                    BigDecimal.valueOf(item.getQuantity())
+                                    BigDecimal.valueOf(
+                                            newQuantity
+                                    )
                             )
             );
 
-
-
         } else {
 
-
-            CartItem item = CartItem.builder()
-
-                    .cart(cart)
-
-                    .product(product)
-
-                    .quantity(request.getQuantity())
-
-                    .subtotal(
-                            product.getPrice()
-                                    .multiply(
-                                            BigDecimal.valueOf(
-                                                    request.getQuantity()
+            /*
+             * New cart item
+             */
+            CartItem item =
+                    CartItem.builder()
+                            .cart(cart)
+                            .product(product)
+                            .quantity(
+                                    request.getQuantity()
+                            )
+                            .subtotal(
+                                    product.getPrice()
+                                            .multiply(
+                                                    BigDecimal.valueOf(
+                                                            request.getQuantity()
+                                                    )
                                             )
-                                    )
-                    )
-
-                    .build();
-
-
+                            )
+                            .build();
 
             cart.getItems().add(item);
-
         }
 
-
-
+        /*
+         * Recalculate total
+         */
         calculateTotal(cart);
 
-
+        /*
+         * Save cart
+         */
         cartRepository.save(cart);
 
-
-
         return convertToDTO(cart);
-
     }
 
+    /*
+     * GET CART
+     */
+    public CartDTO getCart(
+            String customerId
+    ) {
 
+        /*
+         * If no cart exists yet,
+         * return an empty cart instead
+         * of throwing an error.
+         */
+        Cart cart =
+                cartRepository
+                        .findByCustomerId(customerId)
+                        .orElseGet(() ->
 
-
-    public CartDTO getCart(String customerId) {
-
-
-        Cart cart = cartRepository.findByCustomerId(customerId)
-
-                .orElseThrow(() ->
-                        new EntityNotFoundException(
-                                "Cart not found"
-                        ));
-
+                                Cart.builder()
+                                        .customerId(customerId)
+                                        .items(
+                                                new ArrayList<>()
+                                        )
+                                        .totalAmount(
+                                                BigDecimal.ZERO
+                                        )
+                                        .build()
+                        );
 
         return convertToDTO(cart);
-
     }
 
-
-
-
-
+    /*
+     * REMOVE PRODUCT
+     */
     public CartDTO removeFromCart(
             String customerId,
-            Long productId) {
+            Long productId
+    ) {
 
+        Cart cart =
+                cartRepository
+                        .findByCustomerId(customerId)
+                        .orElseThrow(() ->
+                                new EntityNotFoundException(
+                                        "Cart not found"
+                                )
+                        );
 
-
-        Cart cart = cartRepository.findByCustomerId(customerId)
-
-                .orElseThrow(() ->
-                        new EntityNotFoundException(
-                                "Cart not found"
-                        ));
-
-
-
-        cart.getItems()
-                .removeIf(item ->
+        cart.getItems().removeIf(
+                item ->
                         item.getProduct()
                                 .getId()
-                                .equals(productId));
-
-
+                                .equals(productId)
+        );
 
         calculateTotal(cart);
 
-
         cartRepository.save(cart);
 
-
-
         return convertToDTO(cart);
-
     }
 
-
-
-
-
+    /*
+     * UPDATE QUANTITY
+     */
     public CartDTO updateQuantity(
             String customerId,
             Long productId,
-            Integer quantity) {
+            Integer quantity
+    ) {
 
+        if (quantity == null ||
+                quantity <= 0) {
 
+            return removeFromCart(
+                    customerId,
+                    productId
+            );
+        }
 
-        Cart cart = cartRepository.findByCustomerId(customerId)
+        Cart cart =
+                cartRepository
+                        .findByCustomerId(customerId)
+                        .orElseThrow(() ->
+                                new EntityNotFoundException(
+                                        "Cart not found"
+                                )
+                        );
 
-                .orElseThrow(() ->
-                        new EntityNotFoundException(
-                                "Cart not found"
-                        ));
-
-
-
-        CartItem item = cart.getItems()
-
-                .stream()
-
-                .filter(i ->
-                        i.getProduct()
-                                .getId()
-                                .equals(productId))
-
-                .findFirst()
-
-                .orElseThrow(() ->
-                        new EntityNotFoundException(
-                                "Product not found in cart"
-                        ));
-
-
-
+        CartItem item =
+                cart.getItems()
+                        .stream()
+                        .filter(
+                                i ->
+                                        i.getProduct()
+                                                .getId()
+                                                .equals(
+                                                        productId
+                                                )
+                        )
+                        .findFirst()
+                        .orElseThrow(() ->
+                                new EntityNotFoundException(
+                                        "Product not found in cart"
+                                )
+                        );
 
         item.setQuantity(quantity);
 
-
-
         item.setSubtotal(
-
                 item.getProduct()
                         .getPrice()
                         .multiply(
-                                BigDecimal.valueOf(quantity)
+                                BigDecimal.valueOf(
+                                        quantity
+                                )
                         )
-
         );
-
-
 
         calculateTotal(cart);
 
-
-
         cartRepository.save(cart);
 
-
-
         return convertToDTO(cart);
-
     }
 
+    /*
+     * CLEAR CART
+     */
+    public void clearCart(
+            String customerId
+    ) {
 
+        Cart cart =
+                cartRepository
+                        .findByCustomerId(customerId)
+                        .orElse(null);
 
-
-
-    private void calculateTotal(Cart cart) {
-
-
-        BigDecimal total = BigDecimal.ZERO;
-
-
-
-        for(CartItem item : cart.getItems()) {
-
-
-            total = total.add(
-                    item.getSubtotal()
-            );
-
+        if (cart == null) {
+            return;
         }
 
+        cart.getItems().clear();
 
+        cart.setTotalAmount(
+                BigDecimal.ZERO
+        );
 
-        cart.setTotalAmount(total);
-
+        cartRepository.save(cart);
     }
 
+    /*
+     * CALCULATE TOTAL
+     */
+    private void calculateTotal(
+            Cart cart
+    ) {
 
+        BigDecimal total =
+                BigDecimal.ZERO;
 
+        for (CartItem item :
+                cart.getItems()) {
 
+            if (item.getSubtotal() != null) {
 
-    private CartDTO convertToDTO(Cart cart) {
+                total =
+                        total.add(
+                                item.getSubtotal()
+                        );
+            }
+        }
 
+        cart.setTotalAmount(total);
+    }
+
+    /*
+     * CONVERT ENTITY → DTO
+     */
+    private CartDTO convertToDTO(
+            Cart cart
+    ) {
 
         return CartDTO.builder()
 
                 .id(cart.getId())
 
-                .customerId(cart.getCustomerId())
+                .customerId(
+                        cart.getCustomerId()
+                )
 
-                .totalAmount(cart.getTotalAmount())
-
+                .totalAmount(
+                        cart.getTotalAmount()
+                )
 
                 .items(
-
                         cart.getItems()
-
                                 .stream()
-
                                 .map(item ->
-
 
                                         CartItemDTO.builder()
 
                                                 .productId(
-                                                        item.getProduct().getId()
+                                                        item.getProduct()
+                                                                .getId()
                                                 )
-
 
                                                 .productName(
-                                                        item.getProduct().getName()
+                                                        item.getProduct()
+                                                                .getName()
                                                 )
-
 
                                                 .price(
-                                                        item.getProduct().getPrice()
+                                                        item.getProduct()
+                                                                .getPrice()
                                                 )
-
 
                                                 .quantity(
                                                         item.getQuantity()
                                                 )
 
-
                                                 .subtotal(
                                                         item.getSubtotal()
                                                 )
 
-
                                                 .build()
-
                                 )
-
                                 .toList()
-
                 )
 
-
                 .build();
-
     }
-
 }

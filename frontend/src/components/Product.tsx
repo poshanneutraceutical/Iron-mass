@@ -8,7 +8,7 @@ import ProductQuickView from "./ProductQuickView";
 
 const fallbackProducts: Product[] = [
   {
-    id: 1,
+    id: 10,
     name: "Bulk Mass Gainer",
     price: 4200,
     description:
@@ -20,7 +20,7 @@ const fallbackProducts: Product[] = [
     inStock: true,
   },
   {
-    id: 2,
+    id: 11,
     name: "Nitro Surge Pre-Workout",
     price: 1899,
     description:
@@ -32,7 +32,7 @@ const fallbackProducts: Product[] = [
     inStock: true,
   },
   {
-    id: 3,
+    id: 12,
     name: "Mech-Warrior",
     price: 2199,
     description:

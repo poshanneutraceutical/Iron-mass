@@ -1,4 +1,3 @@
-
 package com.Ironmasswebsite.dto;
 
 import lombok.*;
@@ -19,7 +18,8 @@ public class CartDTO {
     private String customerId;
 
     @Builder.Default
-    private List<CartItemDTO> items = new ArrayList<>();
+    private List<CartItemDTO> items =
+            new ArrayList<>();
 
     private BigDecimal totalAmount;
 }
