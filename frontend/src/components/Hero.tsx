@@ -629,13 +629,11 @@ export default function Hero() {
                                       Scroll
                                     </span>
 
-                                    <ChevronDown
-                                      size={22}
-                                      className="text-[#d4af37]"
-                                    />
-
-                                  </motion.a>
-
-                                </section>
-                              );
-                            }
+        <ChevronDown
+          size={22}
+          className="text-[#d4af37]"
+        />
+      </motion.a>
+    </section>
+  );
+}
