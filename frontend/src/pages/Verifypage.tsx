@@ -69,7 +69,7 @@ export default function VerifyPage() {
 
     try {
       const response = await fetch(
-        `${API_URL}/auth/verify``,
+        `${API_URL}/auth/verify`,
         {
           method: "POST",
           headers: {
