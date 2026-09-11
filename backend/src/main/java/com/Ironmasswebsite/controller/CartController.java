@@ -1,11 +1,12 @@
 package com.Ironmasswebsite.controller;
 
-import com.Ironmasswebsite.dto.AddToCartRequest;
-import com.Ironmasswebsite.dto.CartDTO;
 import com.Ironmasswebsite.service.CartService;
-import jakarta.validation.Valid;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/cart")
@@ -15,63 +16,123 @@ public class CartController {
 
     private final CartService cartService;
 
+
     /*
-     * Add product to cart
+     * ============================================================
+     * ADD TO CART
+     * ============================================================
+     *
+     * The request may contain:
+     *
+     * {
+     *   customerId: "...",
+     *   productId: 10,
+     *   flavourId: 123,
+     *   quantity: 1
+     * }
+     *
+     * productId + flavourId are treated as one unique
+     * cart variant.
      */
     @PostMapping("/add")
-    public CartDTO addToCart(
-            @Valid @RequestBody AddToCartRequest request
+    public Map<String, Object> addToCart(
+            @RequestBody Map<String, Object> request
     ) {
+
         return cartService.addToCart(request);
     }
 
-    /*
-     * Get customer cart
-     */
-    @GetMapping("/{customerId}")
-    public CartDTO getCart(
-            @PathVariable String customerId
-    ) {
-        return cartService.getCart(customerId);
-    }
 
     /*
-     * Update quantity
+     * ============================================================
+     * GET CART
+     * ============================================================
+     */
+    @GetMapping("/{customerId}")
+    public Map<String, Object> getCart(
+            @PathVariable String customerId
+    ) {
+
+        return cartService.getCart(
+                customerId
+        );
+    }
+
+
+    /*
+     * ============================================================
+     * UPDATE QUANTITY
+     * ============================================================
+     *
+     * flavourId is optional.
+     *
+     * When flavourId is present:
+     *     update only that exact flavour.
      */
     @PutMapping("/{customerId}/{productId}")
-    public CartDTO updateQuantity(
+    public Map<String, Object> updateQuantity(
             @PathVariable String customerId,
             @PathVariable Long productId,
-            @RequestParam Integer quantity
+
+            @RequestParam Integer quantity,
+
+            @RequestParam(
+                    required = false
+            )
+            Long flavourId
     ) {
+
         return cartService.updateQuantity(
                 customerId,
                 productId,
+                flavourId,
                 quantity
         );
     }
 
+
     /*
-     * Remove product
+     * ============================================================
+     * REMOVE ITEM
+     * ============================================================
+     *
+     * When flavourId is present:
+     *     remove only that exact flavour variant.
+     *
+     * When flavourId is omitted:
+     *     remove all variants of the parent product.
      */
     @DeleteMapping("/{customerId}/{productId}")
-    public CartDTO removeFromCart(
+    public Map<String, Object> removeFromCart(
             @PathVariable String customerId,
-            @PathVariable Long productId
+            @PathVariable Long productId,
+
+            @RequestParam(
+                    required = false
+            )
+            Long flavourId
     ) {
+
         return cartService.removeFromCart(
                 customerId,
-                productId
+                productId,
+                flavourId
         );
     }
 
+
     /*
-     * Clear entire cart
+     * ============================================================
+     * CLEAR CART
+     * ============================================================
      */
     @DeleteMapping("/{customerId}/clear")
     public void clearCart(
             @PathVariable String customerId
     ) {
-        cartService.clearCart(customerId);
+
+        cartService.clearCart(
+                customerId
+        );
     }
 }

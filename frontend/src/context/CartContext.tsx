@@ -12,27 +12,32 @@ import cartService, {
   type CartItem,
 } from "../services/cartService";
 
+
 /* =========================================================
    CONTEXT TYPE
 ========================================================= */
 
 interface CartContextType {
+
   cart: Cart | null;
 
   loading: boolean;
 
   addToCart: (
     productId: number,
-    quantity?: number
+    quantity?: number,
+    flavourId?: number
   ) => Promise<void>;
 
   removeItem: (
-    productId: number
+    productId: number,
+    flavourId?: number
   ) => Promise<void>;
 
   updateQuantity: (
     productId: number,
-    quantity: number
+    quantity: number,
+    flavourId?: number
   ) => Promise<void>;
 
   refreshCart: () => Promise<void>;
@@ -42,20 +47,24 @@ interface CartContextType {
   clearCart: () => Promise<void>;
 }
 
+
 /* =========================================================
    CONTEXT
 ========================================================= */
 
 const CartContext =
-  createContext<CartContextType | undefined>(
-    undefined
-  );
+  createContext<
+    CartContextType | undefined
+  >(undefined);
+
 
 /* =========================================================
    CUSTOMER ID
 ========================================================= */
 
-const CUSTOMER_ID = getCustomerId();
+const CUSTOMER_ID =
+  getCustomerId();
+
 
 /* =========================================================
    CART PROVIDER
@@ -68,56 +77,61 @@ export const CartProvider = ({
 }) => {
 
   const [cart, setCart] =
-    useState<Cart | null>(null);
+    useState<Cart | null>(
+      null
+    );
 
   const [loading, setLoading] =
     useState(false);
+
 
   /* =======================================================
      REFRESH CART
   ======================================================= */
 
-  const refreshCart = async () => {
+  const refreshCart =
+    async () => {
 
-    try {
+      try {
 
-      setLoading(true);
+        setLoading(true);
 
-      const data =
-        await cartService.getCart(
-          CUSTOMER_ID
-        );
+        const data =
+          await cartService.getCart(
+            CUSTOMER_ID
+          );
 
-      setCart(data);
+        setCart(data);
 
-    } catch (error: any) {
-
-      /*
-       * No cart yet is not a serious error.
-       * Just treat it as an empty cart.
-       */
-
-      if (
-        error?.response?.status === 404
+      } catch (
+        error: any
       ) {
 
-        setCart(null);
+        if (
+          error?.response?.status ===
+          404
+        ) {
 
-      } else {
+          setCart(null);
 
-        console.error(
-          "Failed to load cart:",
-          error
-        );
+        } else {
 
-        setCart(null);
+          console.error(
+            "Failed to load cart:",
+            error
+          );
+
+          setCart(null);
+
+        }
+
+      } finally {
+
+        setLoading(false);
+
       }
+    };
 
-    } finally {
-
-      setLoading(false);
-    }
-  };
 
   /* =======================================================
      LOAD CART WHEN WEBSITE STARTS
@@ -129,185 +143,219 @@ export const CartProvider = ({
 
   }, []);
 
+
   /* =======================================================
      ADD TO CART
   ======================================================= */
 
-  const addToCart = async (
-    productId: number,
-    quantity: number = 1
-  ) => {
+  const addToCart =
+    async (
+      productId: number,
+      quantity: number = 1,
+      flavourId?: number
+    ) => {
 
-    try {
+      try {
 
-      setLoading(true);
+        setLoading(true);
 
-      console.log(
-        "Adding product to cart:",
-        {
-          customerId: CUSTOMER_ID,
-          productId,
-          quantity,
-        }
-      );
+        console.log(
+          "Adding item to cart:",
+          {
+            customerId:
+              CUSTOMER_ID,
+            productId,
+            flavourId,
+            quantity,
+          }
+        );
 
-      const data =
-        await cartService.addToCart({
-          customerId: CUSTOMER_ID,
-          productId,
-          quantity,
-        });
+        const data =
+          await cartService.addToCart(
+            {
+              customerId:
+                CUSTOMER_ID,
 
-      console.log(
-        "Cart updated:",
-        data
-      );
+              productId,
 
-      setCart(data);
+              flavourId:
+                flavourId ?? null,
 
-    } catch (error) {
+              quantity,
+            }
+          );
 
-      console.error(
-        "Failed to add product to cart:",
+        console.log(
+          "Cart updated:",
+          data
+        );
+
+        setCart(data);
+
+      } catch (
         error
-      );
+      ) {
 
-      throw error;
+        console.error(
+          "Failed to add item to cart:",
+          error
+        );
 
-    } finally {
+        throw error;
 
-      setLoading(false);
-    }
-  };
+      } finally {
+
+        setLoading(false);
+
+      }
+    };
+
 
   /* =======================================================
      REMOVE ITEM
   ======================================================= */
 
-  const removeItem = async (
-    productId: number
-  ) => {
+  const removeItem =
+    async (
+      productId: number,
+      flavourId?: number
+    ) => {
 
-    try {
+      try {
 
-      setLoading(true);
+        setLoading(true);
 
-      const data =
-        await cartService.removeItem(
-          CUSTOMER_ID,
-          productId
+        const data =
+          await cartService.removeItem(
+            CUSTOMER_ID,
+            productId,
+            flavourId
+          );
+
+        setCart(data);
+
+      } catch (
+        error
+      ) {
+
+        console.error(
+          "Failed to remove item:",
+          error
         );
 
-      setCart(data);
+        throw error;
 
-    } catch (error) {
+      } finally {
 
-      console.error(
-        "Failed to remove item:",
-        error
-      );
+        setLoading(false);
 
-      throw error;
+      }
+    };
 
-    } finally {
-
-      setLoading(false);
-    }
-  };
 
   /* =======================================================
      UPDATE QUANTITY
   ======================================================= */
 
-  const updateQuantity = async (
-    productId: number,
-    quantity: number
-  ) => {
+  const updateQuantity =
+    async (
+      productId: number,
+      quantity: number,
+      flavourId?: number
+    ) => {
 
-    try {
+      try {
 
-      /*
-       * If quantity reaches 0,
-       * remove the item instead.
-       */
+        /*
+         * If quantity reaches 0,
+         * remove the exact flavour
+         * instead.
+         */
 
-      if (quantity <= 0) {
+        if (
+          quantity <= 0
+        ) {
 
-        await removeItem(productId);
+          await removeItem(
+            productId,
+            flavourId
+          );
 
-        return;
-      }
+          return;
 
-      setLoading(true);
+        }
 
-      const data =
-        await cartService.updateQuantity(
-          CUSTOMER_ID,
-          productId,
-          quantity
+
+        setLoading(true);
+
+        const data =
+          await cartService.updateQuantity(
+            CUSTOMER_ID,
+            productId,
+            quantity,
+            flavourId
+          );
+
+        setCart(data);
+
+      } catch (
+        error
+      ) {
+
+        console.error(
+          "Failed to update quantity:",
+          error
         );
 
-      setCart(data);
+        throw error;
 
-    } catch (error) {
+      } finally {
 
-      console.error(
-        "Failed to update quantity:",
-        error
-      );
+        setLoading(false);
 
-      throw error;
+      }
+    };
 
-    } finally {
-
-      setLoading(false);
-    }
-  };
 
   /* =======================================================
      CLEAR CART
   ======================================================= */
 
-  const clearCart = async () => {
+  const clearCart =
+    async () => {
 
-    try {
+      try {
 
-      setLoading(true);
+        setLoading(true);
 
-      await cartService.clearCart(
-        CUSTOMER_ID
-      );
+        await cartService.clearCart(
+          CUSTOMER_ID
+        );
 
-      /*
-       * Immediately clear frontend state.
-       */
+        setCart(null);
 
-      setCart(null);
+        localStorage.removeItem(
+          "cart"
+        );
 
-      /*
-       * Remove any old local cart
-       * if your previous implementation
-       * stored one.
-       */
-
-      localStorage.removeItem(
-        "cart"
-      );
-
-    } catch (error) {
-
-      console.error(
-        "Failed to clear cart:",
+      } catch (
         error
-      );
+      ) {
 
-      throw error;
+        console.error(
+          "Failed to clear cart:",
+          error
+        );
 
-    } finally {
+        throw error;
 
-      setLoading(false);
-    }
-  };
+      } finally {
+
+        setLoading(false);
+
+      }
+    };
+
 
   /* =======================================================
      CART COUNT
@@ -328,6 +376,7 @@ export const CartProvider = ({
       0
     ) || 0;
 
+
   /* =======================================================
      PROVIDER
   ======================================================= */
@@ -336,12 +385,19 @@ export const CartProvider = ({
     <CartContext.Provider
       value={{
         cart,
+
         loading,
+
         addToCart,
+
         removeItem,
+
         updateQuantity,
+
         refreshCart,
+
         cartCount,
+
         clearCart,
       }}
     >
@@ -350,21 +406,25 @@ export const CartProvider = ({
   );
 };
 
+
 /* =========================================================
    USE CART HOOK
 ========================================================= */
 
-export const useCart = () => {
+export const useCart =
+  () => {
 
-  const context =
-    useContext(CartContext);
+    const context =
+      useContext(
+        CartContext
+      );
 
-  if (!context) {
+    if (!context) {
 
-    throw new Error(
-      "useCart must be used inside CartProvider"
-    );
-  }
+      throw new Error(
+        "useCart must be used inside CartProvider"
+      );
+    }
 
-  return context;
-};
+    return context;
+  };

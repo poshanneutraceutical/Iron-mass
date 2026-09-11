@@ -1,14 +1,14 @@
-
 package com.Ironmasswebsite.config;
 
 import com.Ironmasswebsite.entity.Product;
-
 import com.Ironmasswebsite.repository.ProductRepository;
 
 import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -18,113 +18,499 @@ import java.util.List;
 public class DataSeeder {
 
     @Bean
-    CommandLineRunner seedProducts(ProductRepository repo) {
+    CommandLineRunner seedProducts(
+            ProductRepository repo,
+            JdbcTemplate jdbcTemplate
+    ) {
 
         return args -> {
 
-            if (repo.count() > 0) {
-                log.info("Products already exist. Skipping seeding.");
-                return;
-            }
+            /*
+             * ============================================================
+             * KEEP EXISTING PRODUCTS
+             * ============================================================
+             *
+             * This project may already contain the original products.
+             * We therefore DO NOT stop the flavour/product setup just
+             * because the products table is non-empty.
+             *
+             * We seed/update the three Iron Mass parent products that
+             * the current frontend uses.
+             */
 
-            List<Product> products = List.of(
-
-                    Product.builder()
-                            .name("Blood Rush Pre-Workout")
-                            .price(new BigDecimal("1000"))
-                            .description("Blood Rush Pre-Workout is crafted to deliver explosive energy, intense focus, and long-lasting endurance for every workout.")
-                            .category("Pre-Workout")
-                            .badge("BEST SELLER")
-                            .featured(true)
-                            .inStock(true)
-                            .build(),
-
-                    Product.builder()
-                            .name("Burn Syndicate Pre-Workout + Fat Burner")
-                            .price(new BigDecimal("1000"))
-                            .description("Push beyond your limits with Ghost Strength Pre-Workout + Fat Burner. Engineered to ignite explosive energy while supporting fat loss.")
-                            .category("Pre-Workout")
-                            .badge("HOT")
-                            .featured(true)
-                            .inStock(true)
-                            .build(),
-
-                    Product.builder()
-                            .name("Devils Pump Non-Stim Pre-Workout")
-                            .price(new BigDecimal("1000"))
-                            .description("Ghost Strength Non-Stim Pre-Workout delivers clean performance without relying on stimulants.")
-                            .category("Pre-Workout")
-                            .badge("NEW")
-                            .featured(true)
-                            .inStock(true)
-                            .build(),
-
-                    Product.builder()
-                            .name("EAA Electrolyte")
-                            .price(new BigDecimal("1000"))
-                            .description("Essential amino acids with electrolytes to improve hydration, endurance, and muscle recovery.")
-                            .category("Recovery")
-                            .badge("POPULAR")
-                            .featured(true)
-                            .inStock(true)
-                            .build(),
-
-                    Product.builder()
-                            .name("Ghost Whey Protein")
-                            .price(new BigDecimal("1000"))
-                            .description("Premium whey protein with superior absorption to maximize muscle recovery and growth.")
-                            .category("Protein")
-                            .badge("BEST SELLER")
-                            .featured(true)
-                            .inStock(true)
-                            .build(),
-
-                    Product.builder()
-                            .name("Protein Coffee")
-                            .price(new BigDecimal("1000"))
-                            .description("High-protein coffee that combines rich coffee flavor with premium whey protein.")
-                            .category("Protein")
-                            .badge("NEW")
-                            .featured(true)
-                            .inStock(true)
-                            .build(),
-
-                    Product.builder()
-                            .name("Mass Gainer")
-                            .price(new BigDecimal("1000"))
-                            .description("High-calorie lean mass gainer designed for maximum muscle size and strength.")
-                            .category("Mass Gainer")
-                            .badge("POPULAR")
-                            .featured(true)
-                            .inStock(true)
-                            .build(),
-
-                    Product.builder()
-                            .name("Protein Coffee 2KG")
-                            .price(new BigDecimal("1000"))
-                            .description("2KG value pack of Protein Coffee for long-term muscle recovery and energy.")
-                            .category("Protein")
-                            .badge("VALUE PACK")
-                            .featured(true)
-                            .inStock(true)
-                            .build(),
-
-                    Product.builder()
-                            .name("Ghost Whey Protein 2KG")
-                            .price(new BigDecimal("1000"))
-                            .description("2KG premium whey protein for serious athletes looking for maximum performance.")
-                            .category("Protein")
-                            .badge("VALUE PACK")
-                            .featured(true)
-                            .inStock(true)
-                            .build()
-
+            ensureParentProduct(
+                    repo,
+                    "Bulk Mass Gainer",
+                    "4200",
+                    "High-performance mass gainer available in three delicious flavours.",
+                    "Mass Gainer",
+                    "NEW"
             );
 
-            repo.saveAll(products);
+            ensureParentProduct(
+                    repo,
+                    "Nitro Surge Pre-Workout",
+                    "1899",
+                    "High-performance pre-workout available in two powerful flavours.",
+                    "Pre-Workout",
+                    "NEW"
+            );
 
-            log.info("Successfully seeded {} Ghost Strength products.", products.size());
+            ensureParentProduct(
+                    repo,
+                    "Mech-Warrior",
+                    "2199",
+                    "Cybernetic stimulation formula available in two flavours.",
+                    "Pre-Workout",
+                    "NEW"
+            );
+
+
+            /*
+             * ============================================================
+             * PRODUCT FLAVOUR TABLE
+             * ============================================================
+             */
+
+            createProductFlavourTable(
+                    jdbcTemplate
+            );
+
+
+            /*
+             * ============================================================
+             * CART VARIANT COLUMN
+             * ============================================================
+             *
+             * The existing cart tables were created before flavour
+             * support was introduced. Add the nullable flavour_id column
+             * only when it is missing.
+             */
+
+            ensureCartItemFlavourColumn(
+                    jdbcTemplate
+            );
+
+
+            /*
+             * ============================================================
+             * GET CURRENT IRON MASS PARENT IDS
+             * ============================================================
+             */
+
+            Long bulkMassGainerId =
+                    getProductId(
+                            jdbcTemplate,
+                            "Bulk Mass Gainer"
+                    );
+
+            Long nitroSurgeId =
+                    getProductId(
+                            jdbcTemplate,
+                            "Nitro Surge Pre-Workout"
+                    );
+
+            Long mechWarriorId =
+                    getProductId(
+                            jdbcTemplate,
+                            "Mech-Warrior"
+                    );
+
+
+            /*
+             * ============================================================
+             * BULK MASS GAINER FLAVOURS
+             * ============================================================
+             */
+
+            if (bulkMassGainerId != null) {
+
+                seedFlavour(
+                        jdbcTemplate,
+                        bulkMassGainerId,
+                        "Malai Kulfi",
+                        "Mass Gainer in Malai Kulfi flavour. High-calorie lean mass gainer designed for maximum muscle size and strength.",
+                        "4200",
+                        "3 KG"
+                );
+
+                seedFlavour(
+                        jdbcTemplate,
+                        bulkMassGainerId,
+                        "Double Chocolate",
+                        "Mass Gainer in Double Chocolate flavour. High-calorie lean mass gainer designed for maximum muscle size and strength.",
+                        "4200",
+                        "3 KG"
+                );
+
+                seedFlavour(
+                        jdbcTemplate,
+                        bulkMassGainerId,
+                        "Cookies & Cream",
+                        "Mass Gainer in Cookies & Cream flavour. High-calorie lean mass gainer designed for maximum muscle size and strength.",
+                        "4200",
+                        "3 KG"
+                );
+
+            }
+
+
+            /*
+             * ============================================================
+             * NITRO SURGE FLAVOURS
+             * ============================================================
+             */
+
+            if (nitroSurgeId != null) {
+
+                seedFlavour(
+                        jdbcTemplate,
+                        nitroSurgeId,
+                        "Pina Colada",
+                        "Nitro Surge Pre-Workout in Pina Colada flavour. High-performance pre-workout designed to support energy, focus, training intensity and performance.",
+                        "1899",
+                        "180 GM"
+                );
+
+                seedFlavour(
+                        jdbcTemplate,
+                        nitroSurgeId,
+                        "Candy Orange",
+                        "Nitro Surge Pre-Workout in Candy Orange flavour. High-performance pre-workout designed to support energy, focus, training intensity and performance.",
+                        "1899",
+                        "180 GM"
+                );
+
+            }
+
+
+            /*
+             * ============================================================
+             * MECH-WARRIOR FLAVOURS
+             * ============================================================
+             */
+
+            if (mechWarriorId != null) {
+
+                seedFlavour(
+                        jdbcTemplate,
+                        mechWarriorId,
+                        "Pina Colada",
+                        "Mech-Warrior in Pina Colada flavour. Cybernetic stimulation pre-workout formula designed to support intense training performance.",
+                        "2199",
+                        "300 GM"
+                );
+
+                seedFlavour(
+                        jdbcTemplate,
+                        mechWarriorId,
+                        "Candy Orange",
+                        "Mech-Warrior in Candy Orange flavour. Cybernetic stimulation pre-workout formula designed to support intense training performance.",
+                        "2199",
+                        "300 GM"
+                );
+
+            }
+
         };
     }
-}
 
+
+    /*
+     * ================================================================
+     * ENSURE PARENT PRODUCT
+     * ================================================================
+     *
+     * Existing product:
+     *     update the Iron Mass parent fields.
+     *
+     * Missing product:
+     *     create it.
+     */
+    private void ensureParentProduct(
+            ProductRepository repo,
+            String name,
+            String price,
+            String description,
+            String category,
+            String badge
+    ) {
+
+        List<Product> products =
+                repo.findAll();
+
+        Product product =
+                products.stream()
+                        .filter(
+                                item ->
+                                        name.equals(
+                                                item.getName()
+                                        )
+                        )
+                        .findFirst()
+                        .orElse(null);
+
+
+        if (product == null) {
+
+            product =
+                    Product.builder()
+                            .name(name)
+                            .price(
+                                    new BigDecimal(price)
+                            )
+                            .description(
+                                    description
+                            )
+                            .category(
+                                    category
+                            )
+                            .badge(
+                                    badge
+                            )
+                            .featured(true)
+                            .inStock(true)
+                            .build();
+
+            Product saved =
+                    repo.save(product);
+
+            log.info(
+                    "Seeded Iron Mass parent product: id={}, name={}",
+                    saved.getId(),
+                    saved.getName()
+            );
+
+            return;
+        }
+
+
+        /*
+         * Update only the parent product information that belongs
+         * to the Iron Mass catalogue.
+         */
+        product.setPrice(
+                new BigDecimal(price)
+        );
+
+        product.setDescription(
+                description
+        );
+
+        product.setCategory(
+                category
+        );
+
+        product.setBadge(
+                badge
+        );
+
+        product.setFeatured(true);
+
+        product.setInStock(true);
+
+        repo.save(product);
+
+        log.info(
+                "Updated Iron Mass parent product: id={}, name={}",
+                product.getId(),
+                product.getName()
+        );
+
+    }
+
+
+    /*
+     * ================================================================
+     * CREATE PRODUCT FLAVOUR TABLE
+     * ================================================================
+     */
+    private void createProductFlavourTable(
+            JdbcTemplate jdbcTemplate
+    ) {
+
+        jdbcTemplate.execute(
+                """
+                CREATE TABLE IF NOT EXISTS product_flavours (
+                    id BIGINT NOT NULL AUTO_INCREMENT,
+                    flavour_name VARCHAR(255) NOT NULL,
+                    description TEXT,
+                    in_stock BOOLEAN DEFAULT TRUE,
+                    price DECIMAL(10,2) NOT NULL,
+                    product_id BIGINT NOT NULL,
+                    weight VARCHAR(255),
+                    PRIMARY KEY (id),
+                    UNIQUE KEY uk_product_flavour (
+                        product_id,
+                        flavour_name,
+                        weight
+                    )
+                )
+                """
+        );
+
+    }
+
+
+    /*
+     * ================================================================
+     * ENSURE CART FLAVOUR COLUMN
+     * ================================================================
+     */
+    private void ensureCartItemFlavourColumn(
+            JdbcTemplate jdbcTemplate
+    ) {
+
+        Integer count =
+                jdbcTemplate.queryForObject(
+                        """
+                        SELECT COUNT(*)
+                        FROM information_schema.columns
+                        WHERE table_schema = DATABASE()
+                          AND table_name = 'cart_items'
+                          AND column_name = 'flavour_id'
+                        """,
+                        Integer.class
+                );
+
+
+        if (count != null && count > 0) {
+            return;
+        }
+
+
+        jdbcTemplate.execute(
+                """
+                ALTER TABLE cart_items
+                ADD COLUMN flavour_id BIGINT NULL
+                """
+        );
+
+        log.info(
+                "Added flavour_id column to cart_items."
+        );
+
+    }
+
+
+    /*
+     * ================================================================
+     * FIND PRODUCT ID
+     * ================================================================
+     */
+    private Long getProductId(
+            JdbcTemplate jdbcTemplate,
+            String productName
+    ) {
+
+        List<Long> ids =
+                jdbcTemplate.query(
+                        """
+                        SELECT id
+                        FROM products
+                        WHERE name = ?
+                        LIMIT 1
+                        """,
+                        (
+                                rs,
+                                rowNum
+                        ) ->
+                                rs.getLong(
+                                        "id"
+                                ),
+                        productName
+                );
+
+        if (ids.isEmpty()) {
+            return null;
+        }
+
+        return ids.get(0);
+
+    }
+
+
+    /*
+     * ================================================================
+     * SEED / UPDATE FLAVOUR
+     * ================================================================
+     */
+    private void seedFlavour(
+            JdbcTemplate jdbcTemplate,
+            Long productId,
+            String flavourName,
+            String description,
+            String price,
+            String weight
+    ) {
+
+        Integer count =
+                jdbcTemplate.queryForObject(
+                        """
+                        SELECT COUNT(*)
+                        FROM product_flavours
+                        WHERE product_id = ?
+                          AND flavour_name = ?
+                          AND weight = ?
+                        """,
+                        Integer.class,
+                        productId,
+                        flavourName,
+                        weight
+                );
+
+
+        if (count != null && count > 0) {
+
+            jdbcTemplate.update(
+                    """
+                    UPDATE product_flavours
+                    SET
+                        description = ?,
+                        in_stock = TRUE,
+                        price = ?
+                    WHERE product_id = ?
+                      AND flavour_name = ?
+                      AND weight = ?
+                    """,
+                    description,
+                    new BigDecimal(price),
+                    productId,
+                    flavourName,
+                    weight
+            );
+
+            return;
+        }
+
+
+        jdbcTemplate.update(
+                """
+                INSERT INTO product_flavours
+                (
+                    flavour_name,
+                    description,
+                    in_stock,
+                    price,
+                    product_id,
+                    weight
+                )
+                VALUES (?, ?, TRUE, ?, ?, ?)
+                """,
+                flavourName,
+                description,
+                new BigDecimal(price),
+                productId,
+                weight
+        );
+
+        log.info(
+                "Seeded Iron Mass flavour: productId={}, flavour={}, weight={}",
+                productId,
+                flavourName,
+                weight
+        );
+
+    }
+
+}

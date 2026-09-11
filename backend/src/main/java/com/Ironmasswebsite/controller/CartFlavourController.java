@@ -1,10 +1,10 @@
-package com.Ironmasswebsite.service;
+package com.Ironmasswebsite.controller;
 
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -12,10 +12,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-@Service
+@RestController
+@RequestMapping("/api/cart-flavour")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 @Transactional
-public class CartService {
+public class CartFlavourController {
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -24,91 +26,50 @@ public class CartService {
      * ============================================================
      * ADD TO CART
      * ============================================================
-     *
-     * IMPORTANT:
-     *
-     * A cart row is identified by:
-     *
-     *     product_id + flavour_id
-     *
-     * Therefore:
-     *
-     * Bulk Mass Gainer + Malai Kulfi
-     * Bulk Mass Gainer + Double Chocolate
-     * Bulk Mass Gainer + Cookies & Cream
-     *
-     * are three different cart items.
      */
+    @PostMapping("/add")
     public Map<String, Object> addToCart(
-            Map<String, Object> request
+            @RequestBody Map<String, Object> request
     ) {
 
         String customerId =
                 String.valueOf(
-                        request.get(
-                                "customerId"
-                        )
+                        request.get("customerId")
                 );
 
         Long productId =
                 toLong(
-                        request.get(
-                                "productId"
-                        )
+                        request.get("productId")
+                );
+
+        Integer quantity =
+                toInteger(
+                        request.get("quantity")
                 );
 
         Long flavourId =
                 request.get("flavourId") == null
                         ? null
                         : toLong(
-                        request.get(
-                                "flavourId"
-                        )
+                        request.get("flavourId")
                 );
-
-        Integer quantity =
-                toInteger(
-                        request.get(
-                                "quantity"
-                        )
-                );
-
-
-        if (
-                customerId == null ||
-                        customerId.isBlank() ||
-                        "null".equalsIgnoreCase(
-                                customerId
-                        )
-        ) {
-
-            throw new IllegalArgumentException(
-                    "Customer ID is required."
-            );
-        }
 
 
         if (productId == null) {
-
             throw new IllegalArgumentException(
                     "Product ID is required."
             );
         }
 
-
-        if (
-                quantity == null ||
-                        quantity <= 0
-        ) {
-
+        if (quantity == null || quantity < 1) {
             throw new IllegalArgumentException(
-                    "Quantity must be greater than 0."
+                    "Quantity must be at least 1."
             );
         }
 
 
         /*
-         * Make sure the parent product exists.
+         * Validate the parent product.
          */
         Integer productCount =
                 jdbcTemplate.queryForObject(
@@ -121,66 +82,43 @@ public class CartService {
                         productId
                 );
 
-
         if (
                 productCount == null ||
                         productCount == 0
         ) {
 
             throw new IllegalArgumentException(
-                    "Product not found: "
-                            + productId
+                    "Product not found."
             );
+
         }
 
 
         /*
-         * Determine the exact price.
-         *
-         * For a flavour cart item the flavour price is used.
+         * Validate selected flavour and get exact price.
          */
         BigDecimal itemPrice;
 
         if (flavourId != null) {
 
-            List<Map<String, Object>>
-                    flavours =
-                    jdbcTemplate.queryForList(
+            Map<String, Object> flavour =
+                    jdbcTemplate.queryForMap(
                             """
                             SELECT
                                 id,
                                 product_id,
-                                price,
-                                in_stock
+                                price
                             FROM product_flavours
                             WHERE id = ?
-                            LIMIT 1
                             """,
                             flavourId
                     );
 
-
-            if (flavours.isEmpty()) {
-
-                throw new IllegalArgumentException(
-                        "Selected flavour not found: "
-                                + flavourId
-                );
-            }
-
-
-            Map<String, Object>
-                    flavour =
-                    flavours.get(0);
-
-
             Long flavourProductId =
-                    toLong(
+                    ((Number)
                             flavour.get(
                                     "product_id"
-                            )
-                    );
-
+                            )).longValue();
 
             if (
                     !productId.equals(
@@ -189,32 +127,10 @@ public class CartService {
             ) {
 
                 throw new IllegalArgumentException(
-                        "Selected flavour does not belong to the selected product."
+                        "Selected flavour does not belong to this product."
                 );
+
             }
-
-
-            Boolean inStock =
-                    flavour.get(
-                            "in_stock"
-                    ) == null
-                            ? true
-                            : Boolean.valueOf(
-                            String.valueOf(
-                                    flavour.get(
-                                            "in_stock"
-                                    )
-                            )
-                    );
-
-
-            if (!inStock) {
-
-                throw new IllegalArgumentException(
-                        "Selected flavour is out of stock."
-                );
-            }
-
 
             itemPrice =
                     (BigDecimal)
@@ -238,9 +154,6 @@ public class CartService {
         }
 
 
-        /*
-         * Find or create the customer's cart.
-         */
         Long cartId =
                 getOrCreateCart(
                         customerId
@@ -248,14 +161,8 @@ public class CartService {
 
 
         /*
-         * IMPORTANT:
-         *
-         * Find an existing row using BOTH:
-         *
-         *     product_id
-         *     flavour_id
-         *
-         * A different flavour gets a different cart row.
+         * Existing item:
+         * exact parent product + exact flavour.
          */
         Long cartItemId =
                 findCartItemId(
@@ -265,7 +172,7 @@ public class CartService {
                 );
 
 
-        BigDecimal addedSubtotal =
+        BigDecimal subtotal =
                 itemPrice.multiply(
                         BigDecimal.valueOf(
                                 quantity
@@ -275,31 +182,21 @@ public class CartService {
 
         if (cartItemId != null) {
 
-            /*
-             * Same exact flavour already exists:
-             * increase only that row's quantity.
-             */
             jdbcTemplate.update(
                     """
                     UPDATE cart_items
                     SET
-                        quantity =
-                            quantity + ?,
-                        subtotal =
-                            subtotal + ?
+                        quantity = quantity + ?,
+                        subtotal = subtotal + ?
                     WHERE id = ?
                     """,
                     quantity,
-                    addedSubtotal,
+                    subtotal,
                     cartItemId
             );
 
         } else {
 
-            /*
-             * Different flavour:
-             * ALWAYS create a new cart row.
-             */
             jdbcTemplate.update(
                     """
                     INSERT INTO cart_items
@@ -316,13 +213,13 @@ public class CartService {
                     productId,
                     flavourId,
                     quantity,
-                    addedSubtotal
+                    subtotal
             );
 
         }
 
 
-        recalculateTotal(
+        recalculateCart(
                 cartId
         );
 
@@ -339,47 +236,68 @@ public class CartService {
      * GET CART
      * ============================================================
      */
+    @GetMapping("/{customerId}")
     public Map<String, Object> getCart(
-            String customerId
+            @PathVariable String customerId
     ) {
 
-        Long cartId =
-                getExistingCartId(
+        Integer count =
+                jdbcTemplate.queryForObject(
+                        """
+                        SELECT COUNT(*)
+                        FROM cart
+                        WHERE customer_id = ?
+                        """,
+                        Integer.class,
                         customerId
                 );
 
+        if (
+                count == null ||
+                        count == 0
+        ) {
 
-        if (cartId == null) {
-
-            Map<String, Object>
-                    emptyCart =
+            Map<String, Object> empty =
                     new LinkedHashMap<>();
 
-            emptyCart.put(
+            empty.put(
                     "id",
                     null
             );
 
-            emptyCart.put(
+            empty.put(
                     "customerId",
                     customerId
             );
 
-            emptyCart.put(
+            empty.put(
                     "totalAmount",
                     BigDecimal.ZERO
             );
 
-            emptyCart.put(
+            empty.put(
                     "items",
                     new ArrayList<>()
             );
 
-            return emptyCart;
+            return empty;
         }
 
 
-        recalculateTotal(
+        Long cartId =
+                jdbcTemplate.queryForObject(
+                        """
+                        SELECT id
+                        FROM cart
+                        WHERE customer_id = ?
+                        LIMIT 1
+                        """,
+                        Long.class,
+                        customerId
+                );
+
+
+        recalculateCart(
                 cartId
         );
 
@@ -393,19 +311,23 @@ public class CartService {
 
     /*
      * ============================================================
-     * UPDATE EXACT ITEM QUANTITY
+     * UPDATE QUANTITY
      * ============================================================
      */
+    @PutMapping("/{customerId}/{productId}")
     public Map<String, Object> updateQuantity(
-            String customerId,
-            Long productId,
-            Long flavourId,
-            Integer quantity
+            @PathVariable String customerId,
+            @PathVariable Long productId,
+            @RequestParam Integer quantity,
+            @RequestParam(
+                    required = false
+            )
+            Long flavourId
     ) {
 
         if (
                 quantity == null ||
-                        quantity <= 0
+                        quantity < 1
         ) {
 
             return removeFromCart(
@@ -421,12 +343,12 @@ public class CartService {
                         customerId
                 );
 
-
         if (cartId == null) {
 
             throw new IllegalArgumentException(
                     "Cart not found."
             );
+
         }
 
 
@@ -437,17 +359,17 @@ public class CartService {
                         flavourId
                 );
 
-
         if (cartItemId == null) {
 
             throw new IllegalArgumentException(
-                    "Selected cart item was not found."
+                    "Cart item not found."
             );
+
         }
 
 
         BigDecimal itemPrice =
-                getExactItemPrice(
+                getCartItemPrice(
                         productId,
                         flavourId
                 );
@@ -475,7 +397,7 @@ public class CartService {
         );
 
 
-        recalculateTotal(
+        recalculateCart(
                 cartId
         );
 
@@ -489,12 +411,22 @@ public class CartService {
 
     /*
      * ============================================================
-     * REMOVE EXACT ITEM
+     * REMOVE
      * ============================================================
+     *
+     * When flavourId is supplied:
+     *     remove exact product + flavour.
+     *
+     * When flavourId is omitted:
+     *     remove all variants belonging to that parent product.
      */
+    @DeleteMapping("/{customerId}/{productId}")
     public Map<String, Object> removeFromCart(
-            String customerId,
-            Long productId,
+            @PathVariable String customerId,
+            @PathVariable Long productId,
+            @RequestParam(
+                    required = false
+            )
             Long flavourId
     ) {
 
@@ -503,22 +435,29 @@ public class CartService {
                         customerId
                 );
 
-
         if (cartId == null) {
+
             return getCart(
                     customerId
             );
+
         }
 
 
-        if (flavourId != null) {
+        if (flavourId == null) {
 
-            /*
-             * Remove ONLY:
-             *
-             * product_id = selected product
-             * flavour_id = selected flavour
-             */
+            jdbcTemplate.update(
+                    """
+                    DELETE FROM cart_items
+                    WHERE cart_id = ?
+                      AND product_id = ?
+                    """,
+                    cartId,
+                    productId
+            );
+
+        } else {
+
             jdbcTemplate.update(
                     """
                     DELETE FROM cart_items
@@ -531,28 +470,10 @@ public class CartService {
                     flavourId
             );
 
-        } else {
-
-            /*
-             * Parent-product removal:
-             * remove rows without a flavour.
-             *
-             * This does not remove flavour-specific rows.
-             */
-            jdbcTemplate.update(
-                    """
-                    DELETE FROM cart_items
-                    WHERE cart_id = ?
-                      AND product_id = ?
-                      AND flavour_id IS NULL
-                    """,
-                    cartId,
-                    productId
-            );
         }
 
 
-        recalculateTotal(
+        recalculateCart(
                 cartId
         );
 
@@ -566,18 +487,18 @@ public class CartService {
 
     /*
      * ============================================================
-     * CLEAR CART
+     * CLEAR
      * ============================================================
      */
+    @DeleteMapping("/{customerId}/clear")
     public void clearCart(
-            String customerId
+            @PathVariable String customerId
     ) {
 
         Long cartId =
                 getExistingCartId(
                         customerId
                 );
-
 
         if (cartId == null) {
             return;
@@ -606,21 +527,20 @@ public class CartService {
 
     /*
      * ============================================================
-     * GET OR CREATE CART
+     * CART HELPERS
      * ============================================================
      */
     private Long getOrCreateCart(
             String customerId
     ) {
 
-        Long existingCartId =
+        Long existing =
                 getExistingCartId(
                         customerId
                 );
 
-
-        if (existingCartId != null) {
-            return existingCartId;
+        if (existing != null) {
+            return existing;
         }
 
 
@@ -651,11 +571,6 @@ public class CartService {
     }
 
 
-    /*
-     * ============================================================
-     * GET EXISTING CART ID
-     * ============================================================
-     */
     private Long getExistingCartId(
             String customerId
     ) {
@@ -678,21 +593,14 @@ public class CartService {
                         customerId
                 );
 
-
         if (ids.isEmpty()) {
             return null;
         }
-
 
         return ids.get(0);
     }
 
 
-    /*
-     * ============================================================
-     * FIND EXACT CART ITEM
-     * ============================================================
-     */
     private Long findCartItemId(
             Long cartId,
             Long productId,
@@ -700,7 +608,6 @@ public class CartService {
     ) {
 
         List<Long> ids;
-
 
         if (flavourId == null) {
 
@@ -712,7 +619,6 @@ public class CartService {
                             WHERE cart_id = ?
                               AND product_id = ?
                               AND flavour_id IS NULL
-                            ORDER BY id ASC
                             LIMIT 1
                             """,
                             (
@@ -736,7 +642,6 @@ public class CartService {
                             WHERE cart_id = ?
                               AND product_id = ?
                               AND flavour_id = ?
-                            ORDER BY id ASC
                             LIMIT 1
                             """,
                             (
@@ -750,6 +655,7 @@ public class CartService {
                             productId,
                             flavourId
                     );
+
         }
 
 
@@ -757,17 +663,11 @@ public class CartService {
             return null;
         }
 
-
         return ids.get(0);
     }
 
 
-    /*
-     * ============================================================
-     * GET EXACT ITEM PRICE
-     * ============================================================
-     */
-    private BigDecimal getExactItemPrice(
+    private BigDecimal getCartItemPrice(
             Long productId,
             Long flavourId
     ) {
@@ -783,6 +683,7 @@ public class CartService {
                     BigDecimal.class,
                     flavourId
             );
+
         }
 
 
@@ -798,12 +699,7 @@ public class CartService {
     }
 
 
-    /*
-     * ============================================================
-     * RECALCULATE CART TOTAL
-     * ============================================================
-     */
-    private void recalculateTotal(
+    private void recalculateCart(
             Long cartId
     ) {
 
@@ -835,17 +731,6 @@ public class CartService {
     }
 
 
-    /*
-     * ============================================================
-     * BUILD CART RESPONSE
-     * ============================================================
-     *
-     * Every database row becomes one item in the response.
-     *
-     * Therefore:
-     *
-     * 7 database rows = 7 cart items.
-     */
     private Map<String, Object> buildCart(
             String customerId,
             Long cartId
@@ -871,53 +756,32 @@ public class CartService {
                 jdbcTemplate.query(
                         """
                         SELECT
-                            ci.id AS cart_item_id,
                             ci.product_id,
                             p.name AS product_name,
-
                             ci.flavour_id,
                             pf.flavour_name,
                             pf.weight,
-                            pf.description AS flavour_description,
-
                             COALESCE(
                                 pf.price,
                                 p.price
                             ) AS price,
-
                             ci.quantity,
                             ci.subtotal
-
                         FROM cart_items ci
-
                         INNER JOIN products p
                             ON p.id = ci.product_id
-
                         LEFT JOIN product_flavours pf
                             ON pf.id = ci.flavour_id
-
                         WHERE ci.cart_id = ?
-
                         ORDER BY ci.id ASC
                         """,
-
                         (
                                 rs,
                                 rowNum
                         ) -> {
 
-                            Map<String, Object>
-                                    item =
+                            Map<String, Object> item =
                                     new LinkedHashMap<>();
-
-
-                            item.put(
-                                    "cartItemId",
-                                    rs.getLong(
-                                            "cart_item_id"
-                                    )
-                            );
-
 
                             item.put(
                                     "productId",
@@ -926,7 +790,6 @@ public class CartService {
                                     )
                             );
 
-
                             item.put(
                                     "productName",
                                     rs.getString(
@@ -934,18 +797,15 @@ public class CartService {
                                     )
                             );
 
-
                             Object flavourId =
                                     rs.getObject(
                                             "flavour_id"
                                     );
 
-
                             item.put(
                                     "flavourId",
                                     flavourId
                             );
-
 
                             item.put(
                                     "flavourName",
@@ -954,28 +814,12 @@ public class CartService {
                                     )
                             );
 
-
                             item.put(
                                     "weight",
                                     rs.getString(
                                             "weight"
                                     )
                             );
-
-
-                            item.put(
-                                    "description",
-                                    rs.getString(
-                                            "flavour_description"
-                                    )
-                            );
-
-
-                            item.put(
-                                    "imageUrl",
-                                    null
-                            );
-
 
                             item.put(
                                     "price",
@@ -984,14 +828,12 @@ public class CartService {
                                     )
                             );
 
-
                             item.put(
                                     "quantity",
                                     rs.getInt(
                                             "quantity"
                                     )
                             );
-
 
                             item.put(
                                     "subtotal",
@@ -1000,52 +842,39 @@ public class CartService {
                                     )
                             );
 
-
                             return item;
                         },
-
                         cartId
                 );
 
 
-        Map<String, Object>
-                response =
+        Map<String, Object> response =
                 new LinkedHashMap<>();
-
 
         response.put(
                 "id",
                 cartId
         );
 
-
         response.put(
                 "customerId",
                 customerId
         );
-
 
         response.put(
                 "totalAmount",
                 total
         );
 
-
         response.put(
                 "items",
                 items
         );
 
-
         return response;
     }
 
 
-    /*
-     * ============================================================
-     * SAFE CONVERSION HELPERS
-     * ============================================================
-     */
     private Long toLong(
             Object value
     ) {
@@ -1054,11 +883,9 @@ public class CartService {
             return null;
         }
 
-
         if (value instanceof Number) {
             return ((Number) value).longValue();
         }
-
 
         return Long.valueOf(
                 String.valueOf(value)
@@ -1074,11 +901,9 @@ public class CartService {
             return null;
         }
 
-
         if (value instanceof Number) {
             return ((Number) value).intValue();
         }
-
 
         return Integer.valueOf(
                 String.valueOf(value)

@@ -3,10 +3,20 @@ package com.Ironmasswebsite.controller;
 import com.Ironmasswebsite.dto.CheckoutRequestDTO;
 import com.Ironmasswebsite.dto.OrderDTO;
 import com.Ironmasswebsite.service.OrderService;
-import org.springframework.web.bind.annotation.*;
+
 import jakarta.validation.Valid;
+
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 
 @RestController
 @RequestMapping("/api/orders")
@@ -14,16 +24,35 @@ import org.springframework.web.bind.annotation.*;
 @CrossOrigin(origins = "*")
 public class OrderController {
 
+
     private final OrderService orderService;
 
-    /**
-     * Checkout and Place Order
+
+    /*
+     * ============================================================
+     * CHECKOUT / PLACE ORDER
+     * ============================================================
+     *
+     * POST /api/orders/checkout
+     *
+     * This is the exact endpoint used by the frontend
+     * orderService.checkout() method.
      */
     @PostMapping("/checkout")
-    public OrderDTO checkout(
-            @Valid @RequestBody CheckoutRequestDTO request) {
+    public ResponseEntity<OrderDTO> checkout(
+            @Valid
+            @RequestBody
+            CheckoutRequestDTO request
+    ) {
 
-        return orderService.checkout(request);
+        OrderDTO order =
+                orderService.checkout(
+                        request
+                );
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(order);
     }
 
 }

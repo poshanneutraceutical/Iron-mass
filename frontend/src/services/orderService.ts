@@ -1,14 +1,35 @@
 import axios from "axios";
 import type { AxiosInstance } from "axios";
-const API_URL =
-  import.meta.env.VITE_API_URL || "/api";
 
-const api: AxiosInstance = axios.create({
-  baseURL: API_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
+
+/*
+ * Iron Mass backend:
+ *
+ * Development:
+ *     http://localhost:8084/api
+ *
+ * Production:
+ *     /api
+ *
+ * Keeping the development port explicit prevents the frontend
+ * from sending the checkout request to the wrong server/port.
+ */
+const API_URL =
+  (import.meta.env.VITE_API_URL as string) ||
+  (import.meta.env.DEV
+    ? "http://localhost:8084/api"
+    : "/api");
+
+
+const api: AxiosInstance =
+  axios.create({
+    baseURL: API_URL,
+    headers: {
+      "Content-Type":
+        "application/json",
+    },
+  });
+
 
 export interface CheckoutRequest {
   customerId: string;
@@ -21,17 +42,29 @@ export interface CheckoutRequest {
   pincode: string;
 }
 
+
 export interface OrderItem {
   productId: number;
   productName: string;
-  imageUrl: string;
+  imageUrl: string | null;
+
+  /*
+   * Flavour details are optional so this remains
+   * compatible with existing order responses.
+   */
+  flavourId?: number | null;
+  flavourName?: string | null;
+  weight?: string | null;
+
   price: number;
   quantity: number;
   subtotal: number;
 }
 
+
 export interface Order {
   id: number;
+
   customerName: string;
   email: string;
   phone: string;
@@ -39,49 +72,76 @@ export interface Order {
   city: string;
   state: string;
   pincode: string;
+
   totalAmount: number;
+
   paymentStatus: string;
   orderStatus: string;
+
   orderDate: string;
+
   items: OrderItem[];
 }
 
+
 export const orderService = {
-  /**
-   * Place Order (Checkout)
-   */
-  async checkout(request: CheckoutRequest): Promise<Order> {
-    const { data } = await api.post<Order>(
-      "/orders/checkout",
-      request
-    );
 
-    return data;
+  /*
+   * ========================================================
+   * PLACE ORDER / CHECKOUT
+   * ========================================================
+   */
+  async checkout(
+    request: CheckoutRequest
+  ): Promise<Order> {
+
+    const response =
+      await api.post<Order>(
+        "/orders/checkout",
+        request
+      );
+
+    return response.data;
   },
 
-  /**
-   * Get Order By ID
-   */
-  async getOrder(orderId: number): Promise<Order> {
-    const { data } = await api.get<Order>(
-      `/orders/${orderId}`
-    );
 
-    return data;
+  /*
+   * ========================================================
+   * GET ORDER
+   * ========================================================
+   */
+  async getOrder(
+    orderId: number
+  ): Promise<Order> {
+
+    const response =
+      await api.get<Order>(
+        `/orders/${orderId}`
+      );
+
+    return response.data;
   },
 
-  /**
-   * Get All Orders of a Customer
+
+  /*
+   * ========================================================
+   * CUSTOMER ORDERS
+   * ========================================================
    */
   async getCustomerOrders(
     customerId: string
   ): Promise<Order[]> {
-    const { data } = await api.get<Order[]>(
-      `/orders/customer/${customerId}`
-    );
 
-    return data;
+    const response =
+      await api.get<Order[]>(
+        `/orders/customer/${encodeURIComponent(
+          customerId
+        )}`
+      );
+
+    return response.data;
   },
 };
+
 
 export default orderService;

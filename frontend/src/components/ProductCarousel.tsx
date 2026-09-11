@@ -14,10 +14,19 @@ export default function ProductCarousel({
   const [isHovered, setIsHovered] = useState(false);
   const [imageError, setImageError] = useState(false);
 
+  /*
+   * Reset the carousel whenever the selected product's
+   * image list changes.
+   */
+  useEffect(() => {
+    setCurrent(0);
+    setImageError(false);
+  }, [images]);
+
   // Reset image error whenever the image changes
   useEffect(() => {
     setImageError(false);
-  }, [current, images]);
+  }, [current]);
 
   const prev = () => {
     if (images.length <= 1) return;

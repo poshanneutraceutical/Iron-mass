@@ -4,9 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="0f3fbbbb-1c86-4b1b-986c-f8b54d8c8c11" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-    </list>
+    <list default="true" id="0f3fbbbb-1c86-4b1b-986c-f8b54d8c8c11" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -25,18 +23,18 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
-  "lastFilter": {
-    "state": "OPEN",
-    "assignee": "Jatinkumar2815"
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;Jatinkumar2815&quot;
   }
-}]]></component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "https://github.com/poshanneutraceutical/Iron-mass.git",
-    "accountId": "9c69b586-d3f4-4b31-bd85-d157533d5c4b"
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/poshanneutraceutical/Iron-mass.git&quot;,
+    &quot;accountId&quot;: &quot;9c69b586-d3f4-4b31-bd85-d157533d5c4b&quot;
   }
-}]]></component>
+}</component>
   <component name="MavenImportPreferences">
     <option name="generalSettings">
       <MavenGeneralSettings>
@@ -63,12 +61,13 @@
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
     &quot;git-widget-placeholder&quot;: &quot;main&quot;,
     &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/jatin/Downloads/Ironmasswebsite/Ironmasswebsite&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/jatin/Downloads/Ironmasswebsite/Ironmasswebsite/frontend/public/products&quot;,
     &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;
   }
 }</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\Users\jatin\Downloads\Ironmasswebsite\Ironmasswebsite\frontend\public\products" />
       <recent name="C:\Users\jatin\Downloads\Ironmasswebsite\Ironmasswebsite\frontend\public\assets\images" />
       <recent name="C:\Users\jatin\Downloads\Ironmasswebsite\Ironmasswebsite\frontend\public\assets" />
     </key>
@@ -136,7 +135,79 @@
       <option name="project" value="LOCAL" />
       <updated>1787569057973</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="icon update">
+      <option name="closed" value="true" />
+      <created>1788582316504</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1788582316504</updated>
+    </task>
+    <task id="LOCAL-00008" summary="update">
+      <option name="closed" value="true" />
+      <created>1788589726158</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1788589726159</updated>
+    </task>
+    <task id="LOCAL-00009" summary="change">
+      <option name="closed" value="true" />
+      <created>1788596364772</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1788596364772</updated>
+    </task>
+    <task id="LOCAL-00010" summary="update">
+      <option name="closed" value="true" />
+      <created>1788596473881</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1788596473881</updated>
+    </task>
+    <task id="LOCAL-00011" summary="change url">
+      <option name="closed" value="true" />
+      <created>1788596561970</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1788596561970</updated>
+    </task>
+    <task id="LOCAL-00012" summary="change">
+      <option name="closed" value="true" />
+      <created>1788596616340</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1788596616340</updated>
+    </task>
+    <task id="LOCAL-00013" summary="update">
+      <option name="closed" value="true" />
+      <created>1788596648684</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1788596648684</updated>
+    </task>
+    <task id="LOCAL-00014" summary="update">
+      <option name="closed" value="true" />
+      <created>1788599785856</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1788599785856</updated>
+    </task>
+    <task id="LOCAL-00015" summary="update">
+      <option name="closed" value="true" />
+      <created>1788600180085</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1788600180085</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
     <servers />
   </component>
   <component name="UnknownFeatures">
@@ -167,10 +238,11 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="update number" />
+    <MESSAGE value="button update" />
+    <MESSAGE value="icon update" />
+    <MESSAGE value="change url" />
     <MESSAGE value="change" />
     <MESSAGE value="update" />
-    <MESSAGE value="button update" />
-    <option name="LAST_COMMIT_MESSAGE" value="button update" />
-    <option name="LAST_CHUNK_COMMIT_MESSAGE" value="icon update" />
+    <option name="LAST_COMMIT_MESSAGE" value="update" />
   </component>
 </project>

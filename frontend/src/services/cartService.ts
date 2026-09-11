@@ -1,46 +1,77 @@
 import axios from "axios";
 import type { AxiosInstance } from "axios";
 
+
 const API_URL =
   (import.meta.env.VITE_API_URL as string) ||
-  "/api";
+  (import.meta.env.DEV
+    ? "http://localhost:8084/api"
+    : "/api");
+
 
 /* =========================================================
    AXIOS INSTANCE
 ========================================================= */
 
-const api: AxiosInstance = axios.create({
-  baseURL: API_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
+const api: AxiosInstance =
+  axios.create({
+    baseURL: API_URL,
+    headers: {
+      "Content-Type":
+        "application/json",
+    },
+  });
+
 
 /* =========================================================
    TYPES
 ========================================================= */
 
 export interface AddToCartRequest {
+
   customerId: string;
+
   productId: number;
+
+  flavourId?: number | null;
+
   quantity: number;
 }
 
+
 export interface CartItem {
+
   productId: number;
+
   productName: string;
+
   imageUrl: string | null;
+
+  flavourId?: number | null;
+
+  flavourName?: string | null;
+
+  weight?: string | null;
+
   price: number;
+
   quantity: number;
+
   subtotal: number;
 }
 
+
 export interface Cart {
+
   id: number | null;
+
   customerId: string;
+
   totalAmount: number;
+
   items: CartItem[];
 }
+
 
 /* =========================================================
    CART SERVICE
@@ -48,8 +79,9 @@ export interface Cart {
 
 class CartService {
 
+
   /* -------------------------------------------------------
-     ADD PRODUCT TO CART
+     ADD PRODUCT / FLAVOUR TO CART
   ------------------------------------------------------- */
 
   async addToCart(
@@ -65,6 +97,7 @@ class CartService {
     return response.data;
   }
 
+
   /* -------------------------------------------------------
      GET CART
   ------------------------------------------------------- */
@@ -75,52 +108,90 @@ class CartService {
 
     const response =
       await api.get<Cart>(
-        `/cart/${encodeURIComponent(customerId)}`
+        `/cart/${encodeURIComponent(
+          customerId
+        )}`
       );
 
     return response.data;
   }
 
+
   /* -------------------------------------------------------
-     UPDATE PRODUCT QUANTITY
+     UPDATE PRODUCT / FLAVOUR QUANTITY
   ------------------------------------------------------- */
 
   async updateQuantity(
     customerId: string,
     productId: number,
-    quantity: number
+    quantity: number,
+    flavourId?: number
   ): Promise<Cart> {
+
+    const params: Record<
+      string,
+      number
+    > = {
+      quantity,
+    };
+
+
+    if (
+      flavourId != null
+    ) {
+
+      params.flavourId =
+        flavourId;
+
+    }
+
 
     const response =
       await api.put<Cart>(
-        `/cart/${encodeURIComponent(customerId)}/${productId}`,
+        `/cart/${encodeURIComponent(
+          customerId
+        )}/${productId}`,
         null,
         {
-          params: {
-            quantity,
-          },
+          params,
         }
       );
 
     return response.data;
   }
 
+
   /* -------------------------------------------------------
-     REMOVE PRODUCT FROM CART
+     REMOVE PRODUCT / FLAVOUR FROM CART
   ------------------------------------------------------- */
 
   async removeItem(
     customerId: string,
-    productId: number
+    productId: number,
+    flavourId?: number
   ): Promise<Cart> {
+
+    const params =
+      flavourId != null
+        ? {
+            flavourId,
+          }
+        : undefined;
+
 
     const response =
       await api.delete<Cart>(
-        `/cart/${encodeURIComponent(customerId)}/${productId}`
+        `/cart/${encodeURIComponent(
+          customerId
+        )}/${productId}`,
+        {
+          params,
+        }
       );
 
     return response.data;
   }
+
 
   /* -------------------------------------------------------
      CLEAR ENTIRE CART
@@ -131,10 +202,13 @@ class CartService {
   ): Promise<void> {
 
     await api.delete(
-      `/cart/${encodeURIComponent(customerId)}/clear`
+      `/cart/${encodeURIComponent(
+        customerId
+      )}/clear`
     );
   }
 }
+
 
 /* =========================================================
    EXPORT

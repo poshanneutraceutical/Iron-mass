@@ -1,6 +1,29 @@
 const API_URL =
   (import.meta.env.VITE_API_URL as string) ||
-  '/api';
+  (import.meta.env.DEV
+    ? "http://localhost:8084/api"
+    : "/api");
+
+
+export type ProductFlavour = {
+
+  id: number;
+
+  productId: number;
+
+  flavourName: string;
+
+  description: string | null;
+
+  inStock: boolean;
+
+  price: number;
+
+  weight: string | null;
+
+  images: string[];
+
+};
 
 
 export type Product = {
@@ -22,6 +45,8 @@ export type Product = {
   featured: boolean;
 
   inStock: boolean;
+
+  flavours?: ProductFlavour[];
 
 };
 
@@ -58,79 +83,162 @@ export type ContactMessage = {
 };
 
 
-
 async function request<T>(
   path: string,
   options?: RequestInit
 ): Promise<T> {
 
-  const res = await fetch(`${API_URL}${path}`, {
+  const res =
+    await fetch(
+      `${API_URL}${path}`,
+      {
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+        ...options,
+      }
+    );
 
-    headers: {
-      'Content-Type': 'application/json'
-    },
 
-    ...options,
-
-  });
+  const contentType =
+    res.headers.get(
+      "content-type"
+    ) || "";
 
 
   if (!res.ok) {
 
     const text =
-      await res.text().catch(() => 'Request failed');
+      await res
+        .text()
+        .catch(
+          () =>
+            "Request failed"
+        );
 
     throw new Error(
-      text || `Request failed (${res.status})`
+      text ||
+        `Request failed (${res.status})`
     );
   }
 
 
-  if (res.status === 204)
+  if (res.status === 204) {
 
     return undefined as T;
+  }
 
 
-  return res.json() as Promise<T>;
+  /*
+   * The API must return JSON.
+   *
+   * This prevents the confusing:
+   * Unexpected token '<'
+   * error when a frontend HTML page
+   * is returned instead of API JSON.
+   */
+  if (
+    !contentType
+      .toLowerCase()
+      .includes(
+        "application/json"
+      )
+  ) {
+
+    const text =
+      await res
+        .text()
+        .catch(
+          () => ""
+        );
+
+    throw new Error(
+      `Expected JSON from ${API_URL}${path}, ` +
+      `but received a non-JSON response: ` +
+      `${text.slice(0, 120)}`
+    );
+  }
+
+
+  return (await res.json()) as T;
 }
-
 
 
 export const api = {
 
-  // Products
+  /*
+   * ========================================================
+   * PRODUCTS
+   * ========================================================
+   */
+
   getProducts: () =>
-    request<Product[]>('/products'),
+    request<Product[]>(
+      "/products"
+    ),
 
 
-  getProduct: (id: number) =>
-    request<Product>(`/products/${id}`),
+  getProduct: (
+    id: number
+  ) =>
+    request<Product>(
+      `/products/${id}`
+    ),
 
 
+  /*
+   * ========================================================
+   * PRODUCT FLAVOURS
+   * ========================================================
+   */
 
-  // Distributor
+  getProductFlavours: (
+    productId: number
+  ) =>
+    request<ProductFlavour[]>(
+      `/product-flavours/product/${productId}`
+    ),
+
+
+  /*
+   * ========================================================
+   * DISTRIBUTOR
+   * ========================================================
+   */
+
   submitDistributor: (
     data: DistributorInquiry
   ) =>
     request<DistributorInquiry>(
-      '/distributor',
+      "/distributor",
       {
-        method: 'POST',
-        body: JSON.stringify(data),
+        method: "POST",
+        body:
+          JSON.stringify(
+            data
+          ),
       }
     ),
 
 
+  /*
+   * ========================================================
+   * CONTACT
+   * ========================================================
+   */
 
-  // Contact
   submitContact: (
     data: ContactMessage
   ) =>
     request<ContactMessage>(
-      '/contact',
+      "/contact",
       {
-        method: 'POST',
-        body: JSON.stringify(data),
+        method: "POST",
+        body:
+          JSON.stringify(
+            data
+          ),
       }
     ),
 };

@@ -25,14 +25,95 @@ const CUSTOMER_ID = getCustomerId();
    12 = Mech-Warrior
 ========================================================= */
 
-const getProductImage = (productId: number) => {
-  const images: Record<number, string> = {
-    10: "/products/ironmass massgainer.png",
-    11: "/products/iron mass pre workout.png",
-    12: "/products/ironmass pre.png",
+const flavourImages: Record<
+  number,
+  Record<string, string>
+> = {
+  10: {
+    "malai kulfi":
+      "/products/bulk-mass-gainer-malai-kulfi.png",
+
+    "double chocolate":
+      "/products/bulk-mass-gainer-double-chocolate.png",
+
+    "cookies & cream":
+      "/products/bulk-mass-gainer-cookies-cream.png",
+
+    "cookies and cream":
+      "/products/bulk-mass-gainer-cookies-cream.png",
+  },
+
+  11: {
+    "pina colada":
+      "/products/nitro-surge-pina-colada.png",
+
+    "candy orange":
+      "/products/nitro-surge-candy-orange.png",
+  },
+
+  12: {
+    "pina colada":
+      "/products/mech-warrior-pina-colada.png",
+
+    "candy orange":
+      "/products/mech-warrior-candy-orange.png",
+  },
+};
+
+const normaliseFlavourName = (
+  flavourName?: string | null
+) => {
+  return (flavourName || "")
+    .trim()
+    .toLowerCase();
+};
+
+const getProductImage = (
+  productId: number,
+  flavourName?: string | null,
+  imageUrl?: string | null
+) => {
+  /*
+   * First use a backend-provided image if one exists.
+   */
+  if (imageUrl) {
+    return imageUrl;
+  }
+
+  /*
+   * Then use the exact local image mapped to
+   * the selected flavour.
+   */
+  const mappedImage =
+    flavourImages[productId]?.[
+      normaliseFlavourName(flavourName)
+    ];
+
+  if (mappedImage) {
+    return mappedImage;
+  }
+
+  /*
+   * Final fallback to the parent product image.
+   */
+  const productImages: Record<
+    number,
+    string
+  > = {
+    10:
+      "/products/bulk-mass-gainer-malai-kulfi.png",
+
+    11:
+      "/products/nitro-surge-pina-colada.png",
+
+    12:
+      "/products/mech-warrior-pina-colada.png",
   };
 
-  return images[productId] || "/products/default.png";
+  return (
+    productImages[productId] ||
+    "/products/default.png"
+  );
 };
 
 /* =========================================================
@@ -677,9 +758,7 @@ export default function Checkout() {
                       (item) => (
 
                         <div
-                          key={
-                            item.productId
-                          }
+                          key={`${item.productId}-${item.flavourId ?? "parent"}`}
                           className="flex gap-4 pb-4 border-b border-white/10"
                         >
 
@@ -689,17 +768,30 @@ export default function Checkout() {
 
                             <img
                               src={getProductImage(
-                                item.productId
+                                item.productId,
+                                item.flavourName,
+                                item.imageUrl
                               )}
                               alt={
-                                item.productName
+                                item.flavourName
+                                  ? `${item.productName} ${item.flavourName}`
+                                  : item.productName
                               }
                               className="w-full h-full object-contain p-1"
                               onError={(
                                 event
                               ) => {
-                                event.currentTarget.src =
-                                  "/products/default.png";
+                                const target =
+                                  event.currentTarget;
+
+                                if (
+                                  !target.src.endsWith(
+                                    "/products/default.png"
+                                  )
+                                ) {
+                                  target.src =
+                                    "/products/default.png";
+                                }
                               }}
                             />
 
@@ -714,6 +806,20 @@ export default function Checkout() {
                                 item.productName
                               }
                             </p>
+
+                            {item.flavourName && (
+                              <p className="text-sm text-yellow-400 mt-1">
+                                Flavour:{" "}
+                                {item.flavourName}
+                              </p>
+                            )}
+
+                            {item.weight && (
+                              <p className="text-xs text-white/40 mt-1">
+                                Weight:{" "}
+                                {item.weight}
+                              </p>
+                            )}
 
                             <p className="text-sm text-white/40 mt-1">
                               Qty:{" "}
